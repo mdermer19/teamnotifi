@@ -105,7 +105,7 @@ export default function Employees() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Name</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Location</th>
