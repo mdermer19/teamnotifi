@@ -20,6 +20,7 @@ model Location {
   employees        Employee[]        @relation("HomeLocation")
   absences         Absence[]
   managerLocations ManagerLocation[]
+  appUserLocations AppUserLocation[]
 
   @@map("locations")
 }
@@ -208,6 +209,32 @@ model Notification {
   recipient Employee @relation(fields: [recipientId], references: [id])
 
   @@map("notifications")
+}
+
+model AppUser {
+  id          Int      @id @default(autoincrement())
+  clerkUserId String   @unique @map("clerk_user_id")
+  email       String?
+  name        String?
+  role        String   @default("manager") // super_admin | admin | manager
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  locationAccess AppUserLocation[]
+
+  @@map("app_users")
+}
+
+model AppUserLocation {
+  id         Int @id @default(autoincrement())
+  userId     Int @map("user_id")
+  locationId Int @map("location_id")
+
+  user     AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@unique([userId, locationId])
+  @@map("app_user_locations")
 }
 
 model AuditLog {

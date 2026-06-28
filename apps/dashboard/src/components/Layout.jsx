@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
+import { usePermissions } from '../hooks/usePermissions';
 
-const nav = [
+const baseNav = [
   { to: '/', label: "Today's Board", icon: '📋', exact: true },
   { to: '/absences', label: 'Absence Log', icon: '📅' },
   { to: '/employees', label: 'Roster', icon: '🧑‍💼' },
@@ -9,6 +10,12 @@ const nav = [
 ];
 
 export default function Layout({ children }) {
+  const { canManagePermissions } = usePermissions() || {};
+
+  const nav = canManagePermissions
+    ? [...baseNav, { to: '/permissions', label: 'Permissions', icon: '🔐' }]
+    : baseNav;
+
   return (
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}

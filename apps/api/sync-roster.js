@@ -214,7 +214,17 @@ async function main() {
     }
   }
 
-  // ── Step 4: Deactivate employees no longer in the active export ──────────
+  // ── Step 4: Auto-mark supervisors as isManager ───────────────────────────
+  const supervisorCodes = [...new Set(activeRows.map(r => r["Supervisor's Employee ID"]).filter(Boolean))];
+  if (supervisorCodes.length > 0) {
+    const result = await p.employee.updateMany({
+      where: { employeeCode: { in: supervisorCodes }, isManager: false },
+      data: { isManager: true },
+    });
+    console.log(`  Auto-marked ${result.count} supervisors as managers`);
+  }
+
+  // ── Step 5: Deactivate employees no longer in the active export ──────────
   const activeCodes = new Set(activeRows.map(r => r['Employee Id']).filter(Boolean));
   const allEmployees = await p.employee.findMany({ where: { active: true, employeeCode: { not: null } } });
   let deactivated = 0;
@@ -225,7 +235,7 @@ async function main() {
     }
   }
 
-  // ── Finalize log ─────────────────────────────────────────────────────────
+  // ── Finalize log ──────────────────────────────────────────────────────────
   await p.rosterSyncLog.update({
     where: { id: log.id },
     data: {

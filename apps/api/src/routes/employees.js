@@ -1,5 +1,6 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const { getAllowedLocationIds } = require('../middleware/appUser');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -7,10 +8,27 @@ const prisma = new PrismaClient();
 // GET /api/employees
 router.get('/', async (req, res) => {
   try {
-    const { locationId, active, search } = req.query;
+    const { locationId, active, search, isManager } = req.query;
     const where = {};
-    if (locationId) where.locationId = parseInt(locationId);
+
+    // Location restriction based on role
+    const allowedIds = getAllowedLocationIds(req.appUser);
+    if (allowedIds) {
+      where.locationId = { in: allowedIds };
+    }
+
+    // Override with specific location filter (must still be within allowed)
+    if (locationId) {
+      const lid = parseInt(locationId);
+      if (allowedIds && !allowedIds.includes(lid)) {
+        return res.json([]); // requested location not in allowed set
+      }
+      where.locationId = lid;
+    }
+
     if (active !== undefined) where.active = active === 'true';
+    if (isManager !== undefined) where.isManager = isManager === 'true';
+
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: 'insensitive' } },
@@ -105,11 +123,31 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// PATCH /api/employees/:id/manager — toggle isManager only (spreadsheet sync never touches this)
+// PATCH /api/employees/:id/manager — toggle isManager (managers cannot do this)
 router.patch('/:id/manager', async (req, res) => {
   try {
+    const role = req.appUser?.role;
+    if (role === 'manager') {
+      return res.status(403).json({ error: 'Managers cannot change manager status' });
+    }
+
+    // Admins can only toggle employees in their allowed locations
+    if (role === 'admin') {
+      const allowedIds = getAllowedLocationIds(req.appUser);
+      if (allowedIds) {
+        const emp = await prisma.employee.findUnique({
+          where: { id: parseInt(req.params.id) },
+          select: { locationId: true },
+        });
+        if (emp && !allowedIds.includes(emp.locationId)) {
+          return res.status(403).json({ error: 'Cannot modify employees outside your locations' });
+        }
+      }
+    }
+
     const { isManager } = req.body;
     if (typeof isManager !== 'boolean') return res.status(400).json({ error: 'isManager must be boolean' });
+
     const employee = await prisma.employee.update({
       where: { id: parseInt(req.params.id) },
       data: { isManager },

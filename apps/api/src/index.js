@@ -6,6 +6,7 @@ const twilio = require('twilio');
 const { twiml: { MessagingResponse } } = require('twilio');
 const { clerkMiddleware, requireAuth } = require('@clerk/express');
 const { handleInbound, logMessage } = require('./sms/handler');
+const { withAppUser } = require('./middleware/appUser');
 
 const app = express();
 
@@ -54,11 +55,14 @@ app.post('/webhook/sms', async (req, res) => {
   }
 });
 
-// REST API routes — require valid Clerk session
-app.use('/api/locations', requireAuth(), require('./routes/locations'));
-app.use('/api/employees', requireAuth(), require('./routes/employees'));
-app.use('/api/absences', requireAuth(), require('./routes/absences'));
-app.use('/api/coverage', requireAuth(), require('./routes/coverage'));
+// All REST API routes — require valid Clerk session + resolve app user
+app.use('/api', requireAuth(), withAppUser);
+
+app.use('/api/locations', require('./routes/locations'));
+app.use('/api/employees', require('./routes/employees'));
+app.use('/api/absences', require('./routes/absences'));
+app.use('/api/coverage', require('./routes/coverage'));
+app.use('/api/users', require('./routes/users'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
