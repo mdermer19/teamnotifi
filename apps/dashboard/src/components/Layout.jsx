@@ -19,7 +19,7 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}
-      <aside className="w-56 bg-forest text-white flex flex-col flex-shrink-0">
+      <aside className="w-56 bg-forest text-white flex flex-col flex-shrink-0 h-screen sticky top-0">
         <div className="p-5 border-b border-forest-dark">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
@@ -29,7 +29,7 @@ export default function Layout({ children }) {
           </div>
         </div>
 
-        <nav className="flex-1 p-3 space-y-0.5">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {nav.map(({ to, label, icon, exact }) => (
             <NavLink
               key={to}
