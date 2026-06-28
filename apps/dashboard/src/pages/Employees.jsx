@@ -127,7 +127,7 @@ export default function Employees() {
                       {emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : <span className="text-slate-400">—</span>}
                     </td>
                     <td className="px-4 py-3 text-slate-600 capitalize">{emp.role?.replace(/_/g, ' ') || '—'}</td>
-                    <td className="px-4 py-3 text-slate-500 tabular-nums">{emp.phone}</td>
+                    <td className="px-4 py-3 text-slate-500 tabular-nums">{emp.phone ? emp.phone.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '$1-$2-$3') : '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => toggleManager(emp)}
