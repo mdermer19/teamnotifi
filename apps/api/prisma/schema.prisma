@@ -1,0 +1,227 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Location {
+  id           Int      @id @default(autoincrement())
+  name         String
+  brand        String
+  region       String?
+  storeNumber  Int?     @map("store_number")
+  twilioNumber String?  @map("twilio_number")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  employees        Employee[]        @relation("HomeLocation")
+  absences         Absence[]
+  managerLocations ManagerLocation[]
+
+  @@map("locations")
+}
+
+model Employee {
+  id            Int       @id @default(autoincrement())
+  locationId    Int?      @map("location_id")
+  managerId     Int?      @map("manager_id")
+  firstName     String    @map("first_name")
+  lastName      String    @map("last_name")
+  phone         String    @unique
+  employeeCode  String?   @unique @map("employee_code")
+  role          String?
+  isManager     Boolean   @default(false) @map("is_manager")
+  active        Boolean   @default(true)
+  hireDate      DateTime? @map("hire_date") @db.Date
+  languagePref  String    @default("en") @map("language_pref")
+  sheetSyncedAt DateTime? @map("sheet_synced_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  location               Location?      @relation("HomeLocation", fields: [locationId], references: [id])
+  manager                Employee?      @relation("Reports", fields: [managerId], references: [id])
+  directReports          Employee[]     @relation("Reports")
+  managerLocations       ManagerLocation[]
+  absences               Absence[]      @relation("EmployeeAbsences")
+  ackedAbsences          Absence[]      @relation("AckedBy")
+  notifications          Notification[]
+  tempCoverageAsAbsent   TempCoverage[]        @relation("AbsentManager")
+  tempCoverageCreated    TempCoverage[]        @relation("CreatedBy")
+  coveringFor            TempCoverageCoverer[] @relation("CoveringManager")
+  teamSubscriptions      TeamSubscription[]    @relation("TeamSubscriber")
+  teamSubscribers        TeamSubscription[]    @relation("TeamOwner")
+  auditLogs              AuditLog[]
+  rosterSyncLogs         RosterSyncLog[]
+
+  @@map("employees")
+}
+
+model ManagerLocation {
+  id         Int @id @default(autoincrement())
+  managerId  Int @map("manager_id")
+  locationId Int @map("location_id")
+
+  manager  Employee @relation(fields: [managerId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@unique([managerId, locationId])
+  @@map("manager_locations")
+}
+
+model TempCoverage {
+  id              Int      @id @default(autoincrement())
+  absentManagerId Int      @map("absent_manager_id")
+  startDate       DateTime @map("start_date") @db.Date
+  startTime       String   @default("00:00") @map("start_time")
+  endDate         DateTime @map("end_date") @db.Date
+  endTime         String   @default("23:59") @map("end_time")
+  reason          String?
+  createdById     Int?     @map("created_by")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  absentManager Employee             @relation("AbsentManager", fields: [absentManagerId], references: [id])
+  createdBy     Employee?            @relation("CreatedBy", fields: [createdById], references: [id])
+  coverers      TempCoverageCoverer[]
+
+  @@map("temp_coverage")
+}
+
+model TempCoverageCoverer {
+  id         Int @id @default(autoincrement())
+  coverageId Int @map("coverage_id")
+  managerId  Int @map("manager_id")
+
+  coverage TempCoverage @relation(fields: [coverageId], references: [id], onDelete: Cascade)
+  manager  Employee     @relation("CoveringManager", fields: [managerId], references: [id])
+
+  @@unique([coverageId, managerId])
+  @@map("temp_coverage_coverers")
+}
+
+model TeamSubscription {
+  id           Int @id @default(autoincrement())
+  subscriberId Int @map("subscriber_id")
+  teamOwnerId  Int @map("team_owner_id")
+
+  subscriber Employee @relation("TeamSubscriber", fields: [subscriberId], references: [id])
+  teamOwner  Employee @relation("TeamOwner", fields: [teamOwnerId], references: [id])
+
+  @@unique([subscriberId, teamOwnerId])
+  @@map("team_subscriptions")
+}
+
+model RosterSyncLog {
+  id          Int       @id @default(autoincrement())
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  status      String?
+  rowsRead    Int?      @map("rows_read")
+  rowsUpdated Int?      @map("rows_updated")
+  rowsSkipped Int?      @map("rows_skipped")
+  errors      Json?
+  triggeredBy Int?      @map("triggered_by")
+
+  triggeredByEmployee Employee? @relation(fields: [triggeredBy], references: [id])
+
+  @@map("roster_sync_log")
+}
+
+model AbsenceReason {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  label       String
+  isProtected Boolean @default(false) @map("is_protected")
+  active      Boolean @default(true)
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  absences Absence[]
+
+  @@map("absence_reasons")
+}
+
+model Absence {
+  id             Int       @id @default(autoincrement())
+  employeeId     Int       @map("employee_id")
+  locationId     Int       @map("location_id")
+  reasonId       Int       @map("reason_id")
+  shiftDate      DateTime  @map("shift_date") @db.Date
+  reportedAt     DateTime? @map("reported_at")
+  notes          String?
+  drNotePromised Boolean?  @map("dr_note_promised")
+  proofPromised  Boolean?  @map("proof_promised")
+  lateCallout    Boolean   @default(false) @map("late_callout")
+  returnDate     DateTime? @map("return_date") @db.Date
+  managerAcked   Boolean   @default(false) @map("manager_acked")
+  ackedBy        Int?      @map("acked_by")
+  ackedAt        DateTime? @map("acked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  employee      Employee      @relation("EmployeeAbsences", fields: [employeeId], references: [id])
+  location      Location      @relation(fields: [locationId], references: [id])
+  reason        AbsenceReason @relation(fields: [reasonId], references: [id])
+  ackedByEmp    Employee?     @relation("AckedBy", fields: [ackedBy], references: [id])
+  notifications Notification[]
+  smsMessages   SmsMessage[]
+
+  @@map("absences")
+}
+
+model SmsSession {
+  id        Int      @id @default(autoincrement())
+  phone     String   @unique
+  state     String
+  context   Json     @default("{}")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("sms_sessions")
+}
+
+model SmsMessage {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  direction String   // "inbound" | "outbound"
+  body      String
+  absenceId Int?     @map("absence_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  absence Absence? @relation(fields: [absenceId], references: [id])
+
+  @@map("sms_messages")
+}
+
+model Notification {
+  id          Int       @id @default(autoincrement())
+  absenceId   Int       @map("absence_id")
+  recipientId Int       @map("recipient_id")
+  channel     String
+  status      String
+  sentAt      DateTime? @map("sent_at")
+  errorMsg    String?   @map("error_msg")
+
+  absence   Absence  @relation(fields: [absenceId], references: [id])
+  recipient Employee @relation(fields: [recipientId], references: [id])
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  actorId    Int?     @map("actor_id")
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   Int?     @map("entity_id")
+  oldValue   Json?    @map("old_value")
+  newValue   Json?    @map("new_value")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor Employee? @relation(fields: [actorId], references: [id])
+
+  @@map("audit_log")
+}
