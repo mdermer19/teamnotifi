@@ -1,10 +1,12 @@
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
-const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
 
 const prisma = new PrismaClient();
 
 const RECIPIENT = 'hr@puppyhaven.com';
+const PREVIEW_MODE = process.argv.includes('--preview');
 
 async function run() {
   const employees = await prisma.employee.findMany({
@@ -67,6 +69,14 @@ async function run() {
       </div>
     </div>`;
 
+  if (PREVIEW_MODE) {
+    const outPath = path.join(__dirname, 'exception-report-preview.html');
+    fs.writeFileSync(outPath, html);
+    console.log(`Preview saved to: ${outPath}`);
+    return;
+  }
+
+  const nodemailer = require('nodemailer');
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
