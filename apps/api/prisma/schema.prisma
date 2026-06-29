@@ -29,9 +29,9 @@ model Employee {
   id            Int       @id @default(autoincrement())
   locationId    Int?      @map("location_id")
   managerId     Int?      @map("manager_id")
-  firstName     String    @map("first_name")
-  lastName      String    @map("last_name")
-  phone         String    @unique
+  firstName     String?   @map("first_name")
+  lastName      String?   @map("last_name")
+  phone         String?   @unique
   employeeCode  String?   @unique @map("employee_code")
   role          String?
   isManager     Boolean   @default(false) @map("is_manager")
