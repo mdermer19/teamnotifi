@@ -128,18 +128,17 @@ async function main() {
 
   for (const row of activeRows) {
     const employeeCode = row['Employee Id'];
-    if (!employeeCode) { skipped++; continue; }
-
-    const phone = normalizePhone(row['Mobile Phone']);
-    if (!phone) {
-      console.warn(`  SKIP ${row['Preferred/First Name']} ${row['Last Name']} (${employeeCode}) — no valid phone`);
+    if (!employeeCode) {
+      console.warn(`  SKIP row — no Employee ID found`);
       skipped++;
       continue;
     }
 
+    const phone = normalizePhone(row['Mobile Phone']) || null;
+
     const plLocation = row['Location Description'];
     let locationId = null;
-    if (plLocation && !SKIP_LOCATION.has(plLocation)) {
+    if (plLocation) {
       const canonical = LOCATION_MAP[plLocation] || plLocation;
       locationId = locationCache[canonical]?.id ?? null;
     }
@@ -152,8 +151,8 @@ async function main() {
     }
 
     const data = {
-      firstName:    row['Preferred/First Name'] || row['Last Name'],
-      lastName:     row['Last Name'],
+      firstName:    row['Preferred/First Name'] || null,
+      lastName:     row['Last Name'] || null,
       phone,
       role:         row['Position Description'] || null,
       locationId,
@@ -166,17 +165,23 @@ async function main() {
     try {
       const existing = await p.employee.findUnique({ where: { employeeCode } });
       if (existing) {
-        await p.employee.update({
-          where: { employeeCode },
-          data,
-        });
+        // If phone changed and conflicts with another employee, clear it and warn
+        if (phone && phone !== existing.phone) {
+          const phoneConflict = await p.employee.findFirst({ where: { phone, employeeCode: { not: employeeCode } } });
+          if (phoneConflict) {
+            console.warn(`  WARN ${employeeCode} (${data.firstName} ${data.lastName}) — phone ${phone} already used by ${phoneConflict.employeeCode}, importing without phone`);
+            data.phone = null;
+          }
+        }
+        await p.employee.update({ where: { employeeCode }, data });
       } else {
-        // New employee — check if phone already in use by another record
-        const phoneConflict = await p.employee.findUnique({ where: { phone } });
-        if (phoneConflict) {
-          console.warn(`  SKIP ${employeeCode} — phone ${phone} already used by employee ${phoneConflict.employeeCode}`);
-          skipped++;
-          continue;
+        // New employee — if phone conflicts, import without phone and warn
+        if (phone) {
+          const phoneConflict = await p.employee.findUnique({ where: { phone } });
+          if (phoneConflict) {
+            console.warn(`  WARN ${employeeCode} (${data.firstName} ${data.lastName}) — phone ${phone} already used by ${phoneConflict.employeeCode}, importing without phone`);
+            data.phone = null;
+          }
         }
         await p.employee.create({ data: { ...data, employeeCode } });
       }

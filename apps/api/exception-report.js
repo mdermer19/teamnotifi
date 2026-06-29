@@ -15,13 +15,19 @@ async function run() {
     orderBy: [{ location: { name: 'asc' } }, { lastName: 'asc' }],
   });
 
+  // Find duplicate phone numbers across active employees
+  const phoneCounts = {};
+  employees.forEach(e => { if (e.phone) phoneCounts[e.phone] = (phoneCounts[e.phone] || 0) + 1; });
+  const duplicatePhones = new Set(Object.keys(phoneCounts).filter(p => phoneCounts[p] > 1));
+
   const exceptions = employees
     .map(emp => {
       const issues = [];
-      if (!emp.phone)      issues.push('Missing phone number');
-      if (!emp.managerId)  issues.push('No supervisor assigned');
-      if (!emp.locationId) issues.push('No location assigned');
-      if (!emp.firstName)  issues.push('Missing first name');
+      if (!emp.phone)                         issues.push('Missing phone number');
+      else if (duplicatePhones.has(emp.phone)) issues.push('Duplicate phone number — shared with another employee');
+      if (!emp.managerId)                     issues.push('No supervisor assigned');
+      if (!emp.locationId)                    issues.push('No location assigned');
+      if (!emp.firstName)                     issues.push('Missing first name');
       return issues.length > 0 ? { emp, issues } : null;
     })
     .filter(Boolean);
