@@ -59,5 +59,8 @@ export function useApi() {
     updateTemplate:         (key, data)   => request(`/settings/templates/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
     getWorkflowSettings:    ()            => request('/settings/workflow'),
     updateWorkflowSetting:  (key, data)   => request(`/settings/workflow/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+    // Reports
+    getExceptionReport: () => request('/reports/exceptions'),
   };
 }

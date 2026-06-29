@@ -64,6 +64,7 @@ app.use('/api/absences', require('./routes/absences'));
 app.use('/api/coverage', require('./routes/coverage'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/reports', require('./routes/reports'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });

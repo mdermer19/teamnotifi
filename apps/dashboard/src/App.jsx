@@ -8,6 +8,7 @@ import Employees from './pages/Employees';
 import Coverage from './pages/Coverage';
 import Permissions from './pages/Permissions';
 import Settings from './pages/Settings';
+import ExceptionReport from './pages/ExceptionReport';
 
 function LoginPage() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/coverage" element={<Coverage />} />
               <Route path="/permissions" element={<Permissions />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/exception-report" element={<ExceptionReport />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

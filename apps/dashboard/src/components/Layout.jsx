@@ -18,6 +18,7 @@ export default function Layout({ children }) {
     ...baseNav,
     ...(canManagePermissions ? [{ to: '/permissions', label: 'Permissions', icon: '🔐' }] : []),
     ...(isSuperAdmin ? [{ to: '/settings', label: 'Settings', icon: '⚙️' }] : []),
+    ...(isSuperAdmin ? [{ to: '/exception-report', label: 'Exceptions', icon: '⚠️' }] : []),
   ];
 
   return (
