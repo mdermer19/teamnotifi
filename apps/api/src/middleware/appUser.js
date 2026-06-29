@@ -72,22 +72,30 @@ async function withAppUser(req, res, next) {
         data: { clerkUserId, email, name, role, employeeId },
         include: userInclude,
       });
-    } else if (!appUser.employeeId && appUser.email) {
-      // Try to auto-link on every login until linked
-      const emp = await prisma.employee.findFirst({
-        where: { workEmail: appUser.email, active: true },
-        select: { id: true },
-      });
-      if (emp) {
-        appUser = await prisma.appUser.update({
-          where: { id: appUser.id },
-          data: { employeeId: emp.id },
-          include: userInclude,
+    }
+
+    // Set appUser now so auth is never lost even if auto-link fails
+    req.appUser = appUser;
+
+    // Try to auto-link on every login until linked
+    if (!appUser.employeeId && appUser.email) {
+      try {
+        const emp = await prisma.employee.findFirst({
+          where: { workEmail: appUser.email, active: true },
+          select: { id: true },
         });
+        if (emp) {
+          req.appUser = await prisma.appUser.update({
+            where: { id: appUser.id },
+            data: { employeeId: emp.id },
+            include: userInclude,
+          });
+        }
+      } catch (linkErr) {
+        console.error('Auto-link failed:', linkErr.message);
       }
     }
 
-    req.appUser = appUser;
     next();
   } catch (e) {
     console.error('withAppUser error:', e.message);
