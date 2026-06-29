@@ -222,7 +222,7 @@ async function main() {
   for (const row of activeRows) {
     const employeeCode = row['Employee Id'];
     const supervisorCode = row["Supervisor's Employee ID"];
-    if (!employeeCode || !supervisorCode || supervisorCode === employeeCode) continue;
+    if (!employeeCode || !supervisorCode) continue;
 
     try {
       const emp = await p.employee.findUnique({ where: { employeeCode } });
