@@ -7,6 +7,18 @@ const M = require('./messages');
 
 const prisma = new PrismaClient();
 
+// Normalize any inbound number to canonical E.164 (+1 + 10 digits).
+// Strips noise (spaces, dashes, parens) and a leading 1 / +1 so matching
+// is always on area code + 7-digit number. Returns the raw input if it
+// can't be reduced to a US 10-digit number (so logging still works).
+function normalizeInbound(raw) {
+  if (!raw) return raw;
+  const digits = String(raw).replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  return raw;
+}
+
 async function logMessage(phone, direction, body, absenceId = null) {
   await prisma.smsMessage.create({ data: { phone, direction, body, absenceId } }).catch(() => {});
 }
@@ -108,7 +120,8 @@ async function logAbsence(ctx, extras = {}) {
   return { absence };
 }
 
-async function handleInbound(phone, body) {
+async function handleInbound(rawPhone, body) {
+  const phone = normalizeInbound(rawPhone);
   const input = (body || '').trim();
   const upper = input.toUpperCase();
 
@@ -371,4 +384,4 @@ async function advanceToReasonState(phone, ctx, out) {
   return out(null);
 }
 
-module.exports = { handleInbound, logMessage };
+module.exports = { handleInbound, logMessage, normalizeInbound };

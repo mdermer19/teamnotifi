@@ -5,7 +5,7 @@ const path = require('path');
 const twilio = require('twilio');
 const { twiml: { MessagingResponse } } = require('twilio');
 const { clerkMiddleware, requireAuth } = require('@clerk/express');
-const { handleInbound, logMessage } = require('./sms/handler');
+const { handleInbound, logMessage, normalizeInbound } = require('./sms/handler');
 const { withAppUser } = require('./middleware/appUser');
 
 const app = express();
@@ -35,7 +35,7 @@ app.post('/webhook/sms', async (req, res) => {
     }
   }
 
-  const from = req.body.From || '';
+  const from = normalizeInbound(req.body.From || '');
   const body = req.body.Body || '';
   console.log(`SMS from ${from}: ${body}`);
 
