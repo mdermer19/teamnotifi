@@ -1,10 +1,14 @@
-/**
+﻿/**
  * sync-roster.js
  * Reads a Paylocity "Employee Comprehensive Demographic List" CSV and upserts
  * employees into the TeamNotifi database.
  *
- * Safe to run repeatedly — uses employeeCode as the unique key and never
- * touches the isManager flag.
+ * Sync rules:
+ *  - paylocityPhone always reflects what Paylocity has on file
+ *  - phone (used for SMS) is only updated from Paylocity if no personal number exists
+ *  - isManager is never demoted by sync — only promoted via supervisor relationships
+ *  - Employees no longer in the active export are deactivated; open SMS sessions closed
+ *  - Phone conflicts are logged as warnings and surfaced in the exception report
  *
  * Usage:
  *   node -r dotenv/config sync-roster.js [path/to/file.csv]
@@ -17,9 +21,8 @@ const { PrismaClient } = require('@prisma/client');
 
 const p = new PrismaClient();
 
-// ── Location name mapping ────────────────────────────────────────────────────
-// Maps Paylocity "Location Description" values to the canonical name stored
-// in the locations table. Add entries here whenever Paylocity names drift.
+// Maps Paylocity "Location Description" values to canonical names in the DB.
+// Add entries here when Paylocity names drift from what is stored in TeamNotifi.
 const LOCATION_MAP = {
   'Brookhaven':        'Brookhaven',
   'Buckhead':          'Buckhead',
@@ -33,8 +36,6 @@ const LOCATION_MAP = {
   'Lake Highlands':    'Lake Highlands',
   'Harmony Pet Resort':'Harmony Pet Resort',
 };
-
-const SKIP_LOCATION = new Set();
 
 // ── CSV parser ───────────────────────────────────────────────────────────────
 function parseCSV(filePath) {
@@ -78,6 +79,12 @@ function normalizePhone(raw) {
   return null;
 }
 
+// ── Close open SMS session for a phone number ────────────────────────────────
+async function closeSessionForPhone(phone) {
+  if (!phone) return;
+  await p.smsSession.deleteMany({ where: { phone } }).catch(() => {});
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   const csvPath = process.argv[2] || path.join(__dirname, 'paylocity-roster.csv');
@@ -87,7 +94,7 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Reading ${csvPath}…`);
+  console.log(`Reading ${csvPath}...`);
   const rows = parseCSV(csvPath);
   console.log(`  ${rows.length} rows read`);
 
@@ -99,18 +106,12 @@ async function main() {
   });
 
   // ── Step 1: Upsert locations ─────────────────────────────────────────────
-  const locationCache = {}; // canonical name → Location row
-
-  // Pre-load existing locations
-  const existing = await p.location.findMany();
-  for (const loc of existing) {
-    locationCache[loc.name] = loc;
-  }
+  const locationCache = {};
+  const existingLocs = await p.location.findMany();
+  for (const loc of existingLocs) locationCache[loc.name] = loc;
 
   const paylocityLocationNames = [...new Set(activeRows.map(r => r['Location Description']).filter(Boolean))];
-
   for (const plName of paylocityLocationNames) {
-    if (SKIP_LOCATION.has(plName)) continue;
     const canonical = LOCATION_MAP[plName] || plName;
     if (!locationCache[canonical]) {
       const created = await p.location.create({
@@ -125,6 +126,7 @@ async function main() {
   let updated = 0;
   let skipped = 0;
   const errors = [];
+  const phoneConflicts = []; // tracked for exception report
 
   for (const row of activeRows) {
     const employeeCode = row['Employee Id'];
@@ -134,13 +136,13 @@ async function main() {
       continue;
     }
 
-    const phone = normalizePhone(row['Mobile Phone']) || null;
+    const paylocityPhone = normalizePhone(row['Mobile Phone']) || null;
 
     const plLocation = row['Location Description'];
     let locationId = null;
     if (plLocation) {
       const canonical = LOCATION_MAP[plLocation] || plLocation;
-      locationId = locationCache[canonical]?.id ?? null;
+      locationId = locationCache[canonical] ? locationCache[canonical].id : null;
     }
 
     const hireRaw = row['Hire Date'];
@@ -150,40 +152,60 @@ async function main() {
       if (!isNaN(d)) hireDate = d;
     }
 
-    const data = {
-      firstName:    row['Preferred/First Name'] || null,
-      lastName:     row['Last Name'] || null,
-      phone,
-      role:         row['Position Description'] || null,
+    // Fields always overwritten from Paylocity
+    const paylocityFields = {
+      firstName:     row['Preferred/First Name'] || null,
+      lastName:      row['Last Name'] || null,
+      paylocityPhone,
+      role:          row['Position Description'] || null,
       locationId,
       hireDate,
-      active:       true,
+      active:        true,
       sheetSyncedAt: new Date(),
-      // isManager is intentionally NOT touched here
     };
 
     try {
       const existing = await p.employee.findUnique({ where: { employeeCode } });
+
       if (existing) {
-        // If phone changed and conflicts with another employee, clear it and warn
-        if (phone && phone !== existing.phone) {
-          const phoneConflict = await p.employee.findFirst({ where: { phone, employeeCode: { not: employeeCode } } });
-          if (phoneConflict) {
-            console.warn(`  WARN ${employeeCode} (${data.firstName} ${data.lastName}) — phone ${phone} already used by ${phoneConflict.employeeCode}, importing without phone`);
-            data.phone = null;
+        // Determine the SMS phone to use:
+        // - If employee has a personal number (phone differs from their old paylocityPhone), keep it
+        // - Otherwise update phone to match the new Paylocity number
+        let smsPhone = existing.phone;
+        const hasPersonalNumber = existing.phone && existing.phone !== existing.paylocityPhone;
+
+        if (paylocityPhone && !hasPersonalNumber) {
+          // Check for conflict before updating
+          const conflict = await p.employee.findFirst({
+            where: { phone: paylocityPhone, employeeCode: { not: employeeCode } },
+          });
+          if (conflict) {
+            console.warn(`  WARN ${employeeCode} (${paylocityFields.firstName} ${paylocityFields.lastName}) — Paylocity phone ${paylocityPhone} already used by employee ${conflict.employeeCode}`);
+            phoneConflicts.push({ employeeCode, conflictWith: conflict.employeeCode, phone: paylocityPhone });
+            // Keep existing smsPhone unchanged; still save paylocityPhone for reference
+          } else {
+            smsPhone = paylocityPhone;
           }
         }
-        await p.employee.update({ where: { employeeCode }, data });
+
+        await p.employee.update({
+          where: { employeeCode },
+          data: { ...paylocityFields, phone: smsPhone },
+        });
       } else {
-        // New employee — if phone conflicts, import without phone and warn
-        if (phone) {
-          const phoneConflict = await p.employee.findUnique({ where: { phone } });
-          if (phoneConflict) {
-            console.warn(`  WARN ${employeeCode} (${data.firstName} ${data.lastName}) — phone ${phone} already used by ${phoneConflict.employeeCode}, importing without phone`);
-            data.phone = null;
+        // New employee — phone starts as paylocityPhone unless it conflicts
+        let smsPhone = paylocityPhone;
+        if (paylocityPhone) {
+          const conflict = await p.employee.findFirst({ where: { phone: paylocityPhone } });
+          if (conflict) {
+            console.warn(`  WARN ${employeeCode} (${paylocityFields.firstName} ${paylocityFields.lastName}) — Paylocity phone ${paylocityPhone} already used by employee ${conflict.employeeCode}`);
+            phoneConflicts.push({ employeeCode, conflictWith: conflict.employeeCode, phone: paylocityPhone });
+            smsPhone = null;
           }
         }
-        await p.employee.create({ data: { ...data, employeeCode } });
+        await p.employee.create({
+          data: { ...paylocityFields, phone: smsPhone, employeeCode },
+        });
       }
       updated++;
     } catch (e) {
@@ -194,7 +216,7 @@ async function main() {
   }
 
   // ── Step 3: Second pass — wire up managerId ──────────────────────────────
-  console.log('Wiring manager relationships…');
+  console.log('Wiring manager relationships...');
   let managerLinked = 0;
 
   for (const row of activeRows) {
@@ -204,20 +226,18 @@ async function main() {
 
     try {
       const emp = await p.employee.findUnique({ where: { employeeCode } });
+      // Supervisor may be active or inactive — look up without active filter
       const mgr = await p.employee.findUnique({ where: { employeeCode: supervisorCode } });
       if (emp && mgr && emp.managerId !== mgr.id) {
-        await p.employee.update({
-          where: { id: emp.id },
-          data: { managerId: mgr.id },
-        });
+        await p.employee.update({ where: { id: emp.id }, data: { managerId: mgr.id } });
         managerLinked++;
       }
     } catch (e) {
-      // Non-fatal — supervisor may not be in the active list
+      // Non-fatal
     }
   }
 
-  // ── Step 4: Auto-mark supervisors as isManager ───────────────────────────
+  // ── Step 4: Auto-mark supervisors as isManager (never demote) ───────────
   const supervisorCodes = [...new Set(activeRows.map(r => r["Supervisor's Employee ID"]).filter(Boolean))];
   if (supervisorCodes.length > 0) {
     const result = await p.employee.updateMany({
@@ -229,12 +249,18 @@ async function main() {
 
   // ── Step 5: Deactivate employees no longer in the active export ──────────
   const activeCodes = new Set(activeRows.map(r => r['Employee Id']).filter(Boolean));
-  const allEmployees = await p.employee.findMany({ where: { active: true, employeeCode: { not: null } } });
+  const currentlyActive = await p.employee.findMany({
+    where: { active: true, employeeCode: { not: null } },
+  });
+
   let deactivated = 0;
-  for (const emp of allEmployees) {
-    if (emp.employeeCode && !activeCodes.has(emp.employeeCode)) {
+  for (const emp of currentlyActive) {
+    if (!activeCodes.has(emp.employeeCode)) {
       await p.employee.update({ where: { id: emp.id }, data: { active: false } });
+      // Close any open SMS session so they can't continue a mid-flight conversation
+      await closeSessionForPhone(emp.phone);
       deactivated++;
+      console.log(`  Deactivated: ${emp.firstName} ${emp.lastName} (${emp.employeeCode})`);
     }
   }
 
@@ -252,10 +278,15 @@ async function main() {
 
   console.log('');
   console.log('── Sync complete ──────────────────────');
-  console.log(`  Updated/created : ${updated}`);
-  console.log(`  Manager links   : ${managerLinked}`);
-  console.log(`  Deactivated     : ${deactivated}`);
-  console.log(`  Skipped/errors  : ${skipped}`);
+  console.log(`  Updated/created  : ${updated}`);
+  console.log(`  Manager links    : ${managerLinked}`);
+  console.log(`  Deactivated      : ${deactivated}`);
+  console.log(`  Phone conflicts  : ${phoneConflicts.length}`);
+  console.log(`  Skipped/errors   : ${skipped}`);
+  if (phoneConflicts.length) {
+    console.log('  Phone conflicts (see exception report):');
+    phoneConflicts.forEach(c => console.log(`    ${c.employeeCode} conflicts with ${c.conflictWith} on ${c.phone}`));
+  }
   if (errors.length) {
     console.log('  Errors:');
     errors.forEach(e => console.log(`    ${e.employeeCode}: ${e.error}`));

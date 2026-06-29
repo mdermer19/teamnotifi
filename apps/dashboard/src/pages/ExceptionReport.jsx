@@ -119,6 +119,11 @@ export default function ExceptionReport() {
                   <tr key={emp.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
                     <td className="px-4 py-3 font-medium text-slate-800">
                       {emp.lastName || '—'}{emp.firstName ? `, ${emp.firstName}` : ''}
+                      {emp.paylocityPhone && emp.phone && emp.paylocityPhone !== emp.phone && (
+                        <div className="text-xs text-amber-600 font-normal mt-0.5">
+                          SMS: {emp.phone} · Paylocity: {emp.paylocityPhone}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-500 font-mono text-xs">{emp.employeeCode || '—'}</td>
                     <td className="px-4 py-3 text-slate-500">{emp.location || <span className="text-red-500">—</span>}</td>

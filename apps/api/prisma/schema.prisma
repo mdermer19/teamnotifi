@@ -32,6 +32,7 @@ model Employee {
   firstName     String?   @map("first_name")
   lastName      String?   @map("last_name")
   phone         String?   @unique
+  paylocityPhone String?  @map("paylocity_phone")
   employeeCode  String?   @unique @map("employee_code")
   role          String?
   isManager     Boolean   @default(false) @map("is_manager")

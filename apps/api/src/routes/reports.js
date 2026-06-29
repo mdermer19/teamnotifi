@@ -14,6 +14,7 @@ router.get('/exceptions', requireRole('super_admin'), async (req, res) => {
       orderBy: [{ location: { name: 'asc' } }, { lastName: 'asc' }],
     });
 
+    // Duplicate SMS phone check
     const phoneCounts = {};
     employees.forEach(e => {
       if (e.phone) phoneCounts[e.phone] = (phoneCounts[e.phone] || 0) + 1;
@@ -23,13 +24,23 @@ router.get('/exceptions', requireRole('super_admin'), async (req, res) => {
     const exceptions = employees
       .map(emp => {
         const issues = [];
-        if (!emp.phone)                          issues.push('Missing phone number');
-        else if (duplicatePhones.has(emp.phone)) issues.push('Duplicate phone — shared with another employee');
-        if (!emp.managerId)                      issues.push('No supervisor assigned');
-        if (!emp.locationId)                     issues.push('No location assigned');
-        if (!emp.firstName)                      issues.push('Missing first name');
+        if (!emp.phone)                           issues.push('Missing phone number');
+        else if (duplicatePhones.has(emp.phone))  issues.push('Duplicate phone — shared with another employee');
+        if (!emp.managerId)                       issues.push('No supervisor assigned');
+        else if (emp.manager && !emp.manager.active) issues.push(`Supervisor is inactive (${emp.manager.firstName} ${emp.manager.lastName})`);
+        if (!emp.locationId)                      issues.push('No location assigned');
+        if (!emp.firstName)                       issues.push('Missing first name');
         return issues.length > 0
-          ? { id: emp.id, firstName: emp.firstName, lastName: emp.lastName, employeeCode: emp.employeeCode, location: emp.location?.name || null, issues }
+          ? {
+              id: emp.id,
+              firstName: emp.firstName,
+              lastName: emp.lastName,
+              employeeCode: emp.employeeCode,
+              location: emp.location ? emp.location.name : null,
+              phone: emp.phone,
+              paylocityPhone: emp.paylocityPhone,
+              issues,
+            }
           : null;
       })
       .filter(Boolean);
