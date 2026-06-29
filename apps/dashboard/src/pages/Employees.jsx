@@ -144,7 +144,7 @@ export default function Employees() {
         ) : displayed.length === 0 ? (
           <div className="p-12 text-center text-slate-400">No employees found</div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-auto max-h-[calc(100vh-260px)]">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
