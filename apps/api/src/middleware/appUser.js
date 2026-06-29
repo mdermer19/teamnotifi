@@ -46,16 +46,13 @@ async function withAppUser(req, res, next) {
   }
   if (!clerkUserId) clerkUserId = req.auth?.userId || null;
 
-  console.log(`[auth] reached withAppUser path=${req.path} userId=${clerkUserId || 'NONE'}`);
   if (!clerkUserId) return next();
 
   try {
-    console.log(`[auth] clerkUserId=${clerkUserId} path=${req.path}`);
     let appUser = await prisma.appUser.findUnique({
       where: { clerkUserId },
       include: userInclude,
     });
-    console.log(`[auth] appUser found: ${appUser ? `id=${appUser.id} role=${appUser.role}` : 'null'}`);
 
     if (!appUser) {
       let email = null;
