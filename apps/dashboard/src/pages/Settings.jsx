@@ -372,7 +372,7 @@ function ConversationFlowDiagram() {
       <text x={80} y={800} fontSize="10" fill={RED}>— NO reply  </text>
       <text x={136} y={800} fontSize="10" fill={BLUE}>— 1/2/3/4 reply  </text>
       <text x={240} y={800} fontSize="10" fill={GRAY}>— automatic / any valid input</text>
-      <text x={460} y={800} fontSize="10" fill="#94a3b8} ">Dashed arrows = NO skips the toggle step</text>
+      <text x={460} y={800} fontSize="10" fill="#94a3b8">Dashed arrows = NO skips the toggle step</text>
     </svg>
   );
 }
@@ -441,6 +441,7 @@ export default function Settings() {
         {[
           { key: 'messages', label: 'SMS Messages' },
           { key: 'workflow', label: 'Workflow' },
+          { key: 'flow', label: 'Conversation Flow' },
         ].map(t => (
           <button
             key={t.key}
@@ -484,12 +485,9 @@ export default function Settings() {
         <WorkflowTab settings={workflowSettings} onSave={handleSaveWorkflow} />
       )}
 
-      {tab === 'workflow' && (
-        <div className="mt-8">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Conversation Flow</div>
-          <div className="card p-4 overflow-x-auto">
-            <ConversationFlowDiagram />
-          </div>
+      {tab === 'flow' && (
+        <div className="card p-4 overflow-x-auto">
+          <ConversationFlowDiagram />
         </div>
       )}
     </div>
