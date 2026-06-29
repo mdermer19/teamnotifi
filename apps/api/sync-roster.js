@@ -34,9 +34,7 @@ const LOCATION_MAP = {
   'Harmony Pet Resort':'Harmony Pet Resort',
 };
 
-// Paylocity locations that are not physical stores — employees here are
-// imported without a locationId.
-const SKIP_LOCATION = new Set(['Corporate', 'Corp', 'Reservations']);
+const SKIP_LOCATION = new Set();
 
 // ── CSV parser ───────────────────────────────────────────────────────────────
 function parseCSV(filePath) {
