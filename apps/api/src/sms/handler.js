@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+﻿const { PrismaClient } = require('@prisma/client');
 const { getOrCreateSession, updateSession, closeSession } = require('./session');
 const { notifyManager } = require('../services/notify');
 const { parseIntent } = require('../services/ai');
@@ -45,6 +45,35 @@ function dateRangeText(shiftDate, returnDate) {
   const last = new Date(returnDate);
   last.setDate(last.getDate() - 1);
   return `${fmt(start)} – ${fmt(last)}`;
+}
+
+// Builds the full variable context from session state — all vars available in every template.
+async function buildVars(ctx) {
+  const vars = {};
+  if (ctx.employeeId) {
+    const emp = await prisma.employee.findUnique({
+      where: { id: ctx.employeeId },
+      include: { location: true },
+    });
+    if (emp) {
+      vars.firstName = emp.firstName;
+      vars.lastName = emp.lastName;
+      vars.locationName = emp.location ? emp.location.name : '';
+    }
+  }
+  if (ctx.shiftDate) {
+    const fmt = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    vars.shiftDate = fmt(ctx.shiftDate);
+    vars.dateRange = dateRangeText(ctx.shiftDate, ctx.returnDate);
+  }
+  if (ctx.returnDate) {
+    vars.returnDate = new Date(ctx.returnDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  if (ctx.reasonCode) {
+    const reason = await prisma.absenceReason.findUnique({ where: { code: ctx.reasonCode } });
+    vars.reason = reason ? reason.label : ctx.reasonCode;
+  }
+  return vars;
 }
 
 async function logAbsence(ctx, extras = {}) {
@@ -102,7 +131,7 @@ async function handleInbound(phone, body) {
     if (upper === 'NO' || upper === 'N' || upper === 'NOPE' || upper === 'NAH') return 'NO';
     if (extraIntents.includes('CANCEL') && (upper === 'CANCEL' || upper === 'STOP' || upper === 'NEVERMIND')) return 'CANCEL';
     const ai = await parseIntent(state, input);
-    return ai?.intent || 'UNKNOWN';
+    return ai ? ai.intent : 'UNKNOWN';
   }
 
   async function resolveDate(stateKey) {
@@ -119,21 +148,29 @@ async function handleInbound(phone, body) {
   async function resolveReason() {
     if (['1','2','3','4'].includes(input)) return input;
     const ai = await parseIntent('SELECT_REASON', input);
-    return ai?.intent || 'UNKNOWN';
+    return ai ? ai.intent : 'UNKNOWN';
   }
 
   // IDENTIFY
   if (state === 'NEW' || state === 'IDENTIFY') {
-    const employee = await prisma.employee.findUnique({ where: { phone } });
+    const employee = await prisma.employee.findUnique({ where: { phone }, include: { location: true } });
     if (employee) {
       await updateSession(phone, 'CONFIRM_START', { employeeId: employee.id });
-      return out(M.CONFIRM_START(employee.firstName));
+      return out(M.CONFIRM_START({
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        locationName: employee.location ? employee.location.name : '',
+      }));
     }
-    const byCode = await prisma.employee.findUnique({ where: { employeeCode: input } });
+    const byCode = await prisma.employee.findUnique({ where: { employeeCode: input }, include: { location: true } });
     if (byCode) {
       await prisma.employee.update({ where: { id: byCode.id }, data: { phone } });
       await updateSession(phone, 'CONFIRM_START', { employeeId: byCode.id });
-      return out(M.CONFIRM_START(byCode.firstName));
+      return out(M.CONFIRM_START({
+        firstName: byCode.firstName,
+        lastName: byCode.lastName,
+        locationName: byCode.location ? byCode.location.name : '',
+      }));
     }
     await updateSession(phone, 'IDENTIFY', {});
     return out(M.UNKNOWN_PHONE());
@@ -141,149 +178,167 @@ async function handleInbound(phone, body) {
 
   // CONFIRM_START
   if (state === 'CONFIRM_START') {
+    const vars = await buildVars(ctx);
     const intent = await yesNo(['CANCEL']);
     if (intent === 'YES') {
       await updateSession(phone, 'CONFIRM_DATE', ctx);
-      return out(M.CONFIRM_DATE());
+      return out(M.CONFIRM_DATE(vars));
     }
     if (intent === 'NO' || intent === 'CANCEL') {
       await closeSession(phone);
-      return out(M.CANCEL());
+      return out(M.CANCEL(vars));
     }
-    const employee = await prisma.employee.findUnique({ where: { id: ctx.employeeId } });
-    return out(M.CONFIRM_START(employee.firstName));
+    return out(M.CONFIRM_START(vars));
   }
 
   // CONFIRM_DATE
   if (state === 'CONFIRM_DATE') {
+    const vars = await buildVars(ctx);
     const date = await resolveDate('CONFIRM_DATE');
     if (date) {
-      await updateSession(phone, 'SELECT_REASON', { ...ctx, shiftDate: date.toISOString() });
-      return out(M.SELECT_REASON());
+      const newCtx = Object.assign({}, ctx, { shiftDate: date.toISOString() });
+      await updateSession(phone, 'SELECT_REASON', newCtx);
+      return out(M.SELECT_REASON(await buildVars(newCtx)));
     }
-    return out(M.INVALID_DATE());
+    return out(M.INVALID_DATE(vars));
   }
 
   // SELECT_REASON
   if (state === 'SELECT_REASON') {
-    if (upper === 'CANCEL') { await closeSession(phone); return out(M.CANCEL()); }
+    if (upper === 'CANCEL') {
+      const vars = await buildVars(ctx);
+      await closeSession(phone);
+      return out(M.CANCEL(vars));
+    }
 
     const reason = await resolveReason();
     const multiDay = getWorkflowSetting('multi_day_prompt_enabled') === 'true';
 
     if (reason === '1') {
+      const newCtx = Object.assign({}, ctx, { reasonCode: 'SICK' });
       if (multiDay) {
-        await updateSession(phone, 'MULTI_DAY_PROMPT', { ...ctx, reasonCode: 'SICK' });
-        return out(M.MULTI_DAY_PROMPT());
+        await updateSession(phone, 'MULTI_DAY_PROMPT', newCtx);
+        return out(M.MULTI_DAY_PROMPT(await buildVars(newCtx)));
       }
-      return advanceToReasonState(phone, { ...ctx, reasonCode: 'SICK' }, out);
+      return advanceToReasonState(phone, newCtx, out);
     }
     if (reason === '2') {
+      const newCtx = Object.assign({}, ctx, { reasonCode: 'EMERG' });
       if (multiDay) {
-        await updateSession(phone, 'MULTI_DAY_PROMPT', { ...ctx, reasonCode: 'EMERG' });
-        return out(M.MULTI_DAY_PROMPT());
+        await updateSession(phone, 'MULTI_DAY_PROMPT', newCtx);
+        return out(M.MULTI_DAY_PROMPT(await buildVars(newCtx)));
       }
-      return advanceToReasonState(phone, { ...ctx, reasonCode: 'EMERG' }, out);
+      return advanceToReasonState(phone, newCtx, out);
     }
     if (reason === '3') {
-      const result = await logAbsence({ ...ctx, reasonCode: 'LATE' });
+      const newCtx = Object.assign({}, ctx, { reasonCode: 'LATE' });
+      const result = await logAbsence(newCtx);
       await closeSession(phone);
-      return out(M.LATE_MESSAGE(), result.absence?.id);
+      return out(M.LATE_MESSAGE(await buildVars(newCtx)), result.absence ? result.absence.id : null);
     }
     if (reason === '4') {
+      const newCtx = Object.assign({}, ctx, { reasonCode: 'OTHER' });
       if (multiDay) {
-        await updateSession(phone, 'MULTI_DAY_PROMPT', { ...ctx, reasonCode: 'OTHER' });
-        return out(M.MULTI_DAY_PROMPT());
+        await updateSession(phone, 'MULTI_DAY_PROMPT', newCtx);
+        return out(M.MULTI_DAY_PROMPT(await buildVars(newCtx)));
       }
-      return advanceToReasonState(phone, { ...ctx, reasonCode: 'OTHER' }, out);
+      return advanceToReasonState(phone, newCtx, out);
     }
-    return out(M.INVALID_REASON());
+    return out(M.INVALID_REASON(await buildVars(ctx)));
   }
 
   // MULTI_DAY_PROMPT
   if (state === 'MULTI_DAY_PROMPT') {
+    const vars = await buildVars(ctx);
     const intent = await yesNo();
     if (intent === 'NO') {
       return advanceToReasonState(phone, ctx, out);
     }
     if (intent === 'YES') {
       await updateSession(phone, 'RETURN_DATE_PROMPT', ctx);
-      return out(M.RETURN_DATE_PROMPT());
+      return out(M.RETURN_DATE_PROMPT(vars));
     }
-    return out('Please reply YES or NO.\n\n' + M.MULTI_DAY_PROMPT());
+    return out(M.MULTI_DAY_PROMPT(vars));
   }
 
   // RETURN_DATE_PROMPT
   if (state === 'RETURN_DATE_PROMPT') {
+    const vars = await buildVars(ctx);
     const returnDate = await resolveDate('RETURN_DATE_PROMPT');
     const shiftDate = new Date(ctx.shiftDate);
 
     if (!returnDate) {
-      return out(M.INVALID_RETURN_DATE());
+      return out(M.INVALID_RETURN_DATE(vars));
     }
     if (returnDate <= shiftDate) {
-      return out(`Your return date must be after your first absent day (${formatDateShort(shiftDate)}). ` + M.RETURN_DATE_PROMPT());
+      return out('Your return date must be after your first absent day (' + formatDateShort(shiftDate) + '). ' + M.RETURN_DATE_PROMPT(vars));
     }
 
-    await updateSession(phone, nextReasonState(ctx.reasonCode), { ...ctx, returnDate: returnDate.toISOString() });
-    return advanceToReasonState(phone, { ...ctx, returnDate: returnDate.toISOString() }, out);
+    const newCtx = Object.assign({}, ctx, { returnDate: returnDate.toISOString() });
+    await updateSession(phone, nextReasonState(ctx.reasonCode), newCtx);
+    return advanceToReasonState(phone, newCtx, out);
   }
 
   // SICK_NOTE_PROMPT
   if (state === 'SICK_NOTE_PROMPT') {
     const intent = await yesNo();
     if (intent === 'YES') {
-      const result = await logAbsence({ ...ctx, drNotePromised: true });
+      const newCtx = Object.assign({}, ctx, { drNotePromised: true });
+      const result = await logAbsence(newCtx);
       await closeSession(phone);
-      return out(M.SICK_YES_NOTE(dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
+      return out(M.SICK_YES_NOTE(await buildVars(newCtx)), result.absence ? result.absence.id : null);
     }
     if (intent === 'NO') {
-      const result = await logAbsence({ ...ctx, drNotePromised: false });
+      const newCtx = Object.assign({}, ctx, { drNotePromised: false });
+      const result = await logAbsence(newCtx);
       await closeSession(phone);
-      return out(M.SICK_NO_NOTE(dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
+      return out(M.SICK_NO_NOTE(await buildVars(newCtx)), result.absence ? result.absence.id : null);
     }
-    return out(M.SICK_REPROMPT());
+    return out(M.SICK_REPROMPT(await buildVars(ctx)));
   }
 
   // FAMILY_DETAILS
   if (state === 'FAMILY_DETAILS') {
-    const updatedCtx = { ...ctx, notes: input };
+    const updatedCtx = Object.assign({}, ctx, { notes: input });
+    const vars = await buildVars(updatedCtx);
     if (getWorkflowSetting('proof_prompt_enabled') !== 'true') {
       const result = await logAbsence(updatedCtx);
       await closeSession(phone);
-      return out(M.ABSENCE_CONFIRMED(dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
+      return out(M.ABSENCE_CONFIRMED(vars), result.absence ? result.absence.id : null);
     }
     await updateSession(phone, 'FAMILY_PROOF_PROMPT', updatedCtx);
-    return out(M.FAMILY_DETAILS_ACK() + '\n\n' + M.FAMILY_PROOF_PROMPT());
+    return out(M.FAMILY_DETAILS_ACK(vars) + '\n\n' + M.FAMILY_PROOF_PROMPT(vars));
   }
 
   // FAMILY_PROOF_PROMPT
   if (state === 'FAMILY_PROOF_PROMPT') {
     const intent = await yesNo();
     if (intent === 'YES') {
-      const result = await logAbsence({ ...ctx, proofPromised: true });
+      const newCtx = Object.assign({}, ctx, { proofPromised: true });
+      const result = await logAbsence(newCtx);
       await closeSession(phone);
-      return out(M.FAMILY_YES_PROOF(dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
+      return out(M.FAMILY_YES_PROOF(await buildVars(newCtx)), result.absence ? result.absence.id : null);
     }
     if (intent === 'NO') {
-      const result = await logAbsence({ ...ctx, proofPromised: false });
+      const newCtx = Object.assign({}, ctx, { proofPromised: false });
+      const result = await logAbsence(newCtx);
       await closeSession(phone);
-      return out(M.FAMILY_NO_PROOF(dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
+      return out(M.FAMILY_NO_PROOF(await buildVars(newCtx)), result.absence ? result.absence.id : null);
     }
-    return out(M.FAMILY_REPROMPT());
+    return out(M.FAMILY_REPROMPT(await buildVars(ctx)));
   }
 
   // OTHER_DETAILS
   if (state === 'OTHER_DETAILS') {
-    const employee = await prisma.employee.findUnique({ where: { id: ctx.employeeId } });
-    const result = await logAbsence({ ...ctx, notes: input });
+    const updatedCtx = Object.assign({}, ctx, { notes: input });
+    const result = await logAbsence(updatedCtx);
     await closeSession(phone);
-    return out(M.OTHER_DONE(employee.firstName, dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
+    return out(M.OTHER_DONE(await buildVars(updatedCtx)), result.absence ? result.absence.id : null);
   }
 
   // Fallback
   await closeSession(phone);
-  return out(M.CONFIRM_DATE());
+  return out(M.CONFIRM_DATE(await buildVars(ctx)));
 }
 
 function nextReasonState(reasonCode) {
@@ -294,23 +349,24 @@ function nextReasonState(reasonCode) {
 }
 
 async function advanceToReasonState(phone, ctx, out) {
+  const vars = await buildVars(ctx);
   const reasonCode = ctx.reasonCode;
   if (reasonCode === 'SICK') {
     if (getWorkflowSetting('dr_note_prompt_enabled') !== 'true') {
       const result = await logAbsence(ctx);
       await closeSession(phone);
-      return out(M.ABSENCE_CONFIRMED(dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
+      return out(M.ABSENCE_CONFIRMED(vars), result.absence ? result.absence.id : null);
     }
     await updateSession(phone, 'SICK_NOTE_PROMPT', ctx);
-    return out(M.SICK_NOTE_PROMPT());
+    return out(M.SICK_NOTE_PROMPT(vars));
   }
   if (reasonCode === 'EMERG') {
     await updateSession(phone, 'FAMILY_DETAILS', ctx);
-    return out(M.FAMILY_DETAILS_PROMPT());
+    return out(M.FAMILY_DETAILS_PROMPT(vars));
   }
   if (reasonCode === 'OTHER') {
     await updateSession(phone, 'OTHER_DETAILS', ctx);
-    return out(M.OTHER_DETAILS_PROMPT());
+    return out(M.OTHER_DETAILS_PROMPT(vars));
   }
   return out(null);
 }

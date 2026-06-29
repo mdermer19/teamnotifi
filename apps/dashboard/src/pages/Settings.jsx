@@ -2,6 +2,37 @@ import { useState, useEffect, useCallback } from 'react';
 import { useApi } from '../lib/api';
 import { usePermissions } from '../hooks/usePermissions';
 
+// All variables available in every template (some only populated later in the conversation)
+const ALL_VARS = [
+  { name: 'firstName',    when: 'Always (once identified)',       example: 'Sarah' },
+  { name: 'lastName',     when: 'Always (once identified)',       example: 'Johnson' },
+  { name: 'locationName', when: 'Always (once identified)',       example: 'Puppy Haven Boca' },
+  { name: 'shiftDate',    when: 'After date is selected',         example: 'Jun 29' },
+  { name: 'dateRange',    when: 'After date is selected',         example: 'Jun 29 – Jul 1' },
+  { name: 'returnDate',   when: 'If multi-day absence',           example: 'Jul 1' },
+  { name: 'reason',       when: 'After reason is selected',       example: 'Sick' },
+  { name: 'original',     when: 'REPROMPT only',                  example: '(previous message)' },
+  { name: 'date',         when: 'DUPLICATE_ABSENCE only',         example: 'Jun 29' },
+];
+
+// 🔴 critical = structural change breaks the flow
+// 🟡 warn = should keep certain keywords or instructions
+const TEMPLATE_WARNINGS = {
+  SELECT_REASON:       { level: 'critical', text: 'Numbers 1–4 are hardcoded in the system — 1=Sick, 2=Emergency, 3=Late, 4=Other. Only edit the label text next to each number. Never reorder them.' },
+  DUPLICATE_ABSENCE:   { level: 'critical', text: 'The words UPDATE and CANCEL must remain in this message. The system recognizes them as commands.' },
+  CONFIRM_START:       { level: 'critical', text: 'Must instruct the employee to reply YES or CANCEL. Those are the only replies the system acts on here.' },
+  SICK_NOTE_PROMPT:    { level: 'warn',     text: 'Must instruct the employee to reply YES or NO.' },
+  SICK_REPROMPT:       { level: 'warn',     text: 'Must instruct the employee to reply YES or NO.' },
+  FAMILY_PROOF_PROMPT: { level: 'warn',     text: 'Must instruct the employee to reply YES or NO.' },
+  FAMILY_REPROMPT:     { level: 'warn',     text: 'Must instruct the employee to reply YES or NO.' },
+  MULTI_DAY_PROMPT:    { level: 'warn',     text: 'Must instruct the employee to reply YES or NO.' },
+  CONFIRM_DATE:        { level: 'warn',     text: 'Keep TODAY, TOMORROW, and MM/DD as format examples — the system recognizes these exact inputs.' },
+  INVALID_DATE:        { level: 'warn',     text: 'Keep TODAY, TOMORROW, and MM/DD as format examples — the system recognizes these exact inputs.' },
+  RETURN_DATE_PROMPT:  { level: 'warn',     text: 'Keep the MM/DD date format example — the system parses return dates in this format.' },
+  INVALID_RETURN_DATE: { level: 'warn',     text: 'Keep the MM/DD date format example.' },
+  REPROMPT:            { level: 'warn',     text: '{{original}} is required — it inserts the previous message being repeated. Removing it sends a blank reprompt.' },
+};
+
 const TEMPLATE_GROUPS = [
   { label: 'Getting Started', keys: ['UNKNOWN_PHONE', 'CONFIRM_START'] },
   { label: 'Date & Reason', keys: ['CONFIRM_DATE', 'INVALID_DATE', 'SELECT_REASON', 'INVALID_REASON'] },
@@ -13,7 +44,7 @@ const TEMPLATE_GROUPS = [
   { label: 'General', keys: ['CANCEL', 'REPROMPT', 'DUPLICATE_ABSENCE', 'ABSENCE_CONFIRMED'] },
 ];
 
-function TemplateCard({ template, onSave }) {
+function TemplateCard({ template, onSave, warning }) {
   const [text, setText] = useState(template.template);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -75,6 +106,17 @@ function TemplateCard({ template, onSave }) {
 
       {expanded && (
         <div className="px-4 pb-4 border-t border-slate-100 bg-white">
+          {warning && (
+            <div className={`flex gap-2 mt-3 mb-2 px-3 py-2 rounded-lg text-xs ${
+              warning.level === 'critical'
+                ? 'bg-red-50 border border-red-200 text-red-700'
+                : 'bg-amber-50 border border-amber-200 text-amber-700'
+            }`}>
+              <span className="flex-shrink-0">{warning.level === 'critical' ? '🔴' : '⚠️'}</span>
+              <span>{warning.text}</span>
+            </div>
+          )}
+
           {template.description && (
             <p className="text-xs text-slate-500 mt-3 mb-2">{template.description}</p>
           )}
@@ -459,9 +501,21 @@ export default function Settings() {
 
       {tab === 'messages' && (
         <div className="space-y-6">
-          <p className="text-sm text-slate-500">
-            Click any message to expand and edit it. Use <span className="font-mono text-xs bg-slate-100 px-1 py-0.5 rounded">{'{{variable}}'}</span> placeholders where dynamic values should appear.
-          </p>
+          <div className="card p-4">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Available Variables</div>
+            <p className="text-xs text-slate-500 mb-3">
+              Use <span className="font-mono bg-slate-100 px-1 py-0.5 rounded">{'{{variableName}}'}</span> in any message. If a variable isn't available yet at that point in the conversation, it will appear literally — so use context-appropriate ones.
+            </p>
+            <div className="grid gap-1.5">
+              {ALL_VARS.map(v => (
+                <div key={v.name} className="flex items-baseline gap-3 text-xs">
+                  <span className="font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">{`{{${v.name}}}`}</span>
+                  <span className="text-slate-500">{v.when}</span>
+                  <span className="text-slate-400 ml-auto flex-shrink-0">e.g. {v.example}</span>
+                </div>
+              ))}
+            </div>
+          </div>
           {TEMPLATE_GROUPS.map(group => {
             const groupTemplates = group.keys.map(k => templateMap[k]).filter(Boolean);
             if (groupTemplates.length === 0) return null;
@@ -472,7 +526,7 @@ export default function Settings() {
                 </div>
                 <div className="space-y-2">
                   {groupTemplates.map(t => (
-                    <TemplateCard key={t.key} template={t} onSave={handleSaveTemplate} />
+                    <TemplateCard key={t.key} template={t} onSave={handleSaveTemplate} warning={TEMPLATE_WARNINGS[t.key]} />
                   ))}
                 </div>
               </div>
