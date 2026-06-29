@@ -7,6 +7,7 @@ import Absences from './pages/Absences';
 import Employees from './pages/Employees';
 import Coverage from './pages/Coverage';
 import Permissions from './pages/Permissions';
+import Settings from './pages/Settings';
 
 function LoginPage() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
               <Route path="/employees" element={<Employees />} />
               <Route path="/coverage" element={<Coverage />} />
               <Route path="/permissions" element={<Permissions />} />
+              <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

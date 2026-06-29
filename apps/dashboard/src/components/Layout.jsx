@@ -12,9 +12,13 @@ const baseNav = [
 export default function Layout({ children }) {
   const { canManagePermissions } = usePermissions() || {};
 
-  const nav = canManagePermissions
-    ? [...baseNav, { to: '/permissions', label: 'Permissions', icon: '🔐' }]
-    : baseNav;
+  const { isSuperAdmin } = usePermissions() || {};
+
+  const nav = [
+    ...baseNav,
+    ...(canManagePermissions ? [{ to: '/permissions', label: 'Permissions', icon: '🔐' }] : []),
+    ...(isSuperAdmin ? [{ to: '/settings', label: 'Settings', icon: '⚙️' }] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-white flex">

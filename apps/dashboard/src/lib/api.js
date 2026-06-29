@@ -53,5 +53,11 @@ export function useApi() {
     getMe:      ()          => request('/users/me'),
     getUsers:   ()          => request('/users'),
     updateUser: (id, data)  => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+    // Settings
+    getTemplates:           ()            => request('/settings/templates'),
+    updateTemplate:         (key, data)   => request(`/settings/templates/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
+    getWorkflowSettings:    ()            => request('/settings/workflow'),
+    updateWorkflowSetting:  (key, data)   => request(`/settings/workflow/${key}`, { method: 'PUT', body: JSON.stringify(data) }),
   };
 }

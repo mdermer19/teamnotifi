@@ -63,6 +63,7 @@ app.use('/api/employees', require('./routes/employees'));
 app.use('/api/absences', require('./routes/absences'));
 app.use('/api/coverage', require('./routes/coverage'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/settings', require('./routes/settings'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });

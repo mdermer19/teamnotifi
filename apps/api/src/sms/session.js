@@ -1,11 +1,12 @@
 const { PrismaClient } = require('@prisma/client');
+const { getSessionTimeoutMinutes } = require('../services/settingsCache');
+
 const prisma = new PrismaClient();
 
-const SESSION_TTL_MINUTES = 30;
-
 async function getOrCreateSession(phone) {
+  const ttl = getSessionTimeoutMinutes();
   const now = new Date();
-  const expires = new Date(now.getTime() + SESSION_TTL_MINUTES * 60 * 1000);
+  const expires = new Date(now.getTime() + ttl * 60 * 1000);
 
   let session = await prisma.smsSession.findUnique({ where: { phone } });
 
@@ -24,7 +25,8 @@ async function getOrCreateSession(phone) {
 }
 
 async function updateSession(phone, state, context) {
-  const expires = new Date(Date.now() + SESSION_TTL_MINUTES * 60 * 1000);
+  const ttl = getSessionTimeoutMinutes();
+  const expires = new Date(Date.now() + ttl * 60 * 1000);
   return prisma.smsSession.update({
     where: { phone },
     data: { state, context, expiresAt: expires, updatedAt: new Date() },

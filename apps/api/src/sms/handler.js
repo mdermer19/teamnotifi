@@ -2,6 +2,7 @@ const { PrismaClient } = require('@prisma/client');
 const { getOrCreateSession, updateSession, closeSession } = require('./session');
 const { notifyManager } = require('../services/notify');
 const { parseIntent } = require('../services/ai');
+const { getWorkflowSetting } = require('../services/settingsCache');
 const M = require('./messages');
 
 const prisma = new PrismaClient();
@@ -96,7 +97,6 @@ async function handleInbound(phone, body) {
     return { reply, absenceId };
   }
 
-  // Resolve YES/NO/CANCEL intents — exact first, AI fallback
   async function yesNo(extraIntents = []) {
     if (upper === 'YES' || upper === 'Y' || upper === 'YEP' || upper === 'YEAH' || upper === 'YUP') return 'YES';
     if (upper === 'NO' || upper === 'N' || upper === 'NOPE' || upper === 'NAH') return 'NO';
@@ -105,7 +105,6 @@ async function handleInbound(phone, body) {
     return ai?.intent || 'UNKNOWN';
   }
 
-  // Resolve date intents — exact first, AI fallback
   async function resolveDate(stateKey) {
     const d = parseDate(input);
     if (d) return d;
@@ -117,7 +116,6 @@ async function handleInbound(phone, body) {
     return null;
   }
 
-  // Resolve reason selection — exact first, AI fallback
   async function resolveReason() {
     if (['1','2','3','4'].includes(input)) return input;
     const ai = await parseIntent('SELECT_REASON', input);
@@ -138,7 +136,7 @@ async function handleInbound(phone, body) {
       return out(M.CONFIRM_START(byCode.firstName));
     }
     await updateSession(phone, 'IDENTIFY', {});
-    return out(M.UNKNOWN_PHONE);
+    return out(M.UNKNOWN_PHONE());
   }
 
   // CONFIRM_START
@@ -146,11 +144,11 @@ async function handleInbound(phone, body) {
     const intent = await yesNo(['CANCEL']);
     if (intent === 'YES') {
       await updateSession(phone, 'CONFIRM_DATE', ctx);
-      return out(M.CONFIRM_DATE);
+      return out(M.CONFIRM_DATE());
     }
     if (intent === 'NO' || intent === 'CANCEL') {
       await closeSession(phone);
-      return out(M.CANCEL);
+      return out(M.CANCEL());
     }
     const employee = await prisma.employee.findUnique({ where: { id: ctx.employeeId } });
     return out(M.CONFIRM_START(employee.firstName));
@@ -161,34 +159,45 @@ async function handleInbound(phone, body) {
     const date = await resolveDate('CONFIRM_DATE');
     if (date) {
       await updateSession(phone, 'SELECT_REASON', { ...ctx, shiftDate: date.toISOString() });
-      return out(M.SELECT_REASON);
+      return out(M.SELECT_REASON());
     }
-    return out(M.INVALID_DATE);
+    return out(M.INVALID_DATE());
   }
 
-  // SELECT_REASON — ask multi-day immediately after (except LATE)
+  // SELECT_REASON
   if (state === 'SELECT_REASON') {
-    if (upper === 'CANCEL') { await closeSession(phone); return out(M.CANCEL); }
+    if (upper === 'CANCEL') { await closeSession(phone); return out(M.CANCEL()); }
 
     const reason = await resolveReason();
+    const multiDay = getWorkflowSetting('multi_day_prompt_enabled') === 'true';
+
     if (reason === '1') {
-      await updateSession(phone, 'MULTI_DAY_PROMPT', { ...ctx, reasonCode: 'SICK' });
-      return out(M.MULTI_DAY_PROMPT);
+      if (multiDay) {
+        await updateSession(phone, 'MULTI_DAY_PROMPT', { ...ctx, reasonCode: 'SICK' });
+        return out(M.MULTI_DAY_PROMPT());
+      }
+      return advanceToReasonState(phone, { ...ctx, reasonCode: 'SICK' }, out);
     }
     if (reason === '2') {
-      await updateSession(phone, 'MULTI_DAY_PROMPT', { ...ctx, reasonCode: 'EMERG' });
-      return out(M.MULTI_DAY_PROMPT);
+      if (multiDay) {
+        await updateSession(phone, 'MULTI_DAY_PROMPT', { ...ctx, reasonCode: 'EMERG' });
+        return out(M.MULTI_DAY_PROMPT());
+      }
+      return advanceToReasonState(phone, { ...ctx, reasonCode: 'EMERG' }, out);
     }
     if (reason === '3') {
       const result = await logAbsence({ ...ctx, reasonCode: 'LATE' });
       await closeSession(phone);
-      return out(M.LATE_MESSAGE, result.absence?.id);
+      return out(M.LATE_MESSAGE(), result.absence?.id);
     }
     if (reason === '4') {
-      await updateSession(phone, 'MULTI_DAY_PROMPT', { ...ctx, reasonCode: 'OTHER' });
-      return out(M.MULTI_DAY_PROMPT);
+      if (multiDay) {
+        await updateSession(phone, 'MULTI_DAY_PROMPT', { ...ctx, reasonCode: 'OTHER' });
+        return out(M.MULTI_DAY_PROMPT());
+      }
+      return advanceToReasonState(phone, { ...ctx, reasonCode: 'OTHER' }, out);
     }
-    return out(M.INVALID_REASON);
+    return out(M.INVALID_REASON());
   }
 
   // MULTI_DAY_PROMPT
@@ -199,9 +208,9 @@ async function handleInbound(phone, body) {
     }
     if (intent === 'YES') {
       await updateSession(phone, 'RETURN_DATE_PROMPT', ctx);
-      return out(M.RETURN_DATE_PROMPT);
+      return out(M.RETURN_DATE_PROMPT());
     }
-    return out('Please reply YES or NO.\n\n' + M.MULTI_DAY_PROMPT);
+    return out('Please reply YES or NO.\n\n' + M.MULTI_DAY_PROMPT());
   }
 
   // RETURN_DATE_PROMPT
@@ -210,10 +219,10 @@ async function handleInbound(phone, body) {
     const shiftDate = new Date(ctx.shiftDate);
 
     if (!returnDate) {
-      return out(M.INVALID_RETURN_DATE);
+      return out(M.INVALID_RETURN_DATE());
     }
     if (returnDate <= shiftDate) {
-      return out(`Your return date must be after your first absent day (${formatDateShort(shiftDate)}). ` + M.RETURN_DATE_PROMPT);
+      return out(`Your return date must be after your first absent day (${formatDateShort(shiftDate)}). ` + M.RETURN_DATE_PROMPT());
     }
 
     await updateSession(phone, nextReasonState(ctx.reasonCode), { ...ctx, returnDate: returnDate.toISOString() });
@@ -233,13 +242,19 @@ async function handleInbound(phone, body) {
       await closeSession(phone);
       return out(M.SICK_NO_NOTE(dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
     }
-    return out(M.SICK_REPROMPT);
+    return out(M.SICK_REPROMPT());
   }
 
   // FAMILY_DETAILS
   if (state === 'FAMILY_DETAILS') {
-    await updateSession(phone, 'FAMILY_PROOF_PROMPT', { ...ctx, notes: input });
-    return out(M.FAMILY_DETAILS_ACK + '\n\n' + M.FAMILY_PROOF_PROMPT);
+    const updatedCtx = { ...ctx, notes: input };
+    if (getWorkflowSetting('proof_prompt_enabled') !== 'true') {
+      const result = await logAbsence(updatedCtx);
+      await closeSession(phone);
+      return out(M.ABSENCE_CONFIRMED(dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
+    }
+    await updateSession(phone, 'FAMILY_PROOF_PROMPT', updatedCtx);
+    return out(M.FAMILY_DETAILS_ACK() + '\n\n' + M.FAMILY_PROOF_PROMPT());
   }
 
   // FAMILY_PROOF_PROMPT
@@ -255,7 +270,7 @@ async function handleInbound(phone, body) {
       await closeSession(phone);
       return out(M.FAMILY_NO_PROOF(dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
     }
-    return out(M.FAMILY_REPROMPT);
+    return out(M.FAMILY_REPROMPT());
   }
 
   // OTHER_DETAILS
@@ -268,7 +283,7 @@ async function handleInbound(phone, body) {
 
   // Fallback
   await closeSession(phone);
-  return out(M.CONFIRM_DATE);
+  return out(M.CONFIRM_DATE());
 }
 
 function nextReasonState(reasonCode) {
@@ -281,16 +296,21 @@ function nextReasonState(reasonCode) {
 async function advanceToReasonState(phone, ctx, out) {
   const reasonCode = ctx.reasonCode;
   if (reasonCode === 'SICK') {
+    if (getWorkflowSetting('dr_note_prompt_enabled') !== 'true') {
+      const result = await logAbsence(ctx);
+      await closeSession(phone);
+      return out(M.ABSENCE_CONFIRMED(dateRangeText(ctx.shiftDate, ctx.returnDate)), result.absence?.id);
+    }
     await updateSession(phone, 'SICK_NOTE_PROMPT', ctx);
-    return out(M.SICK_NOTE_PROMPT);
+    return out(M.SICK_NOTE_PROMPT());
   }
   if (reasonCode === 'EMERG') {
     await updateSession(phone, 'FAMILY_DETAILS', ctx);
-    return out(M.FAMILY_DETAILS_PROMPT);
+    return out(M.FAMILY_DETAILS_PROMPT());
   }
   if (reasonCode === 'OTHER') {
     await updateSession(phone, 'OTHER_DETAILS', ctx);
-    return out(M.OTHER_DETAILS_PROMPT);
+    return out(M.OTHER_DETAILS_PROMPT());
   }
   return out(null);
 }

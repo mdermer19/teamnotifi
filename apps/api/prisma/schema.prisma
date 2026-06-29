@@ -237,6 +237,31 @@ model AppUserLocation {
   @@map("app_user_locations")
 }
 
+model MessageTemplate {
+  id              Int      @id @default(autoincrement())
+  key             String   @unique
+  label           String
+  template        String
+  variables       String[]
+  description     String?
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  updatedBy       String?  @map("updated_by")
+
+  @@map("message_templates")
+}
+
+model WorkflowSetting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  label       String
+  type        String
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("workflow_settings")
+}
+
 model AuditLog {
   id         Int      @id @default(autoincrement())
   actorId    Int?     @map("actor_id")
