@@ -13,12 +13,7 @@ function LoginPage() {
   return (
     <div className="min-h-screen bg-cream flex items-center justify-center">
       <div className="text-center">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-10 h-10 bg-forest rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">T</span>
-          </div>
-          <span className="text-2xl font-bold text-forest">TeamNotifi</span>
-        </div>
+        <img src="/logo.png" alt="TeamNotifi" className="w-36 h-36 rounded-2xl mx-auto mb-8 object-cover" />
         <SignIn routing="hash" />
       </div>
     </div>

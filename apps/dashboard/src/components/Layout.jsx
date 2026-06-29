@@ -24,13 +24,8 @@ export default function Layout({ children }) {
     <div className="min-h-screen bg-white flex">
       {/* Sidebar */}
       <aside className="w-56 bg-forest text-white flex flex-col flex-shrink-0 h-screen sticky top-0">
-        <div className="p-5 border-b border-forest-dark">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">T</span>
-            </div>
-            <span className="font-bold text-lg">TeamNotifi</span>
-          </div>
+        <div className="p-3 border-b border-forest-dark flex items-center justify-center">
+          <img src="/logo.png" alt="TeamNotifi" className="h-20 w-20 rounded-xl object-cover" />
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
