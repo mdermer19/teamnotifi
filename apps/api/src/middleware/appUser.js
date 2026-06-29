@@ -1,5 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
-const { clerkClient } = require('@clerk/express');
+const { clerkClient, getAuth } = require('@clerk/express');
 
 const prisma = new PrismaClient();
 
@@ -37,7 +37,16 @@ async function getViewScope(appUser) {
 }
 
 async function withAppUser(req, res, next) {
-  const clerkUserId = req.auth?.userId;
+  let clerkUserId = null;
+  try {
+    const auth = getAuth(req);
+    clerkUserId = auth?.userId || null;
+  } catch (e) {
+    console.error('[auth] getAuth failed:', e.message);
+  }
+  if (!clerkUserId) clerkUserId = req.auth?.userId || null;
+
+  console.log(`[auth] reached withAppUser path=${req.path} userId=${clerkUserId || 'NONE'}`);
   if (!clerkUserId) return next();
 
   try {
