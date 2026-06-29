@@ -136,7 +136,7 @@ async function main() {
       continue;
     }
 
-    const paylocityPhone = normalizePhone(row['Mobile Phone']) || null;
+    const paylocityPhone = normalizePhone(row['Work Mobile Phone']) || null;
 
     const plLocation = row['Location Description'];
     let locationId = null;
@@ -222,7 +222,7 @@ async function main() {
   for (const row of activeRows) {
     const employeeCode = row['Employee Id'];
     const supervisorCode = row["Supervisor's Employee ID"];
-    if (!employeeCode || !supervisorCode) continue;
+    if (!employeeCode || !supervisorCode || supervisorCode === employeeCode) continue;
 
     try {
       const emp = await p.employee.findUnique({ where: { employeeCode } });
