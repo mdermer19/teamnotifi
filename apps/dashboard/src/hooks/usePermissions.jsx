@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+﻿import { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 
 const BASE = '/api';
@@ -26,7 +26,7 @@ export function PermissionsProvider({ children }) {
   const isSuperAdmin = me?.role === 'super_admin';
   const isAdmin = me?.role === 'admin';
   const isManager = me?.role === 'manager';
-  const canToggleManager = isSuperAdmin || isAdmin;
+  const canToggleManager = isSuperAdmin;
   const canManagePermissions = isSuperAdmin;
 
   return (
@@ -39,3 +39,4 @@ export function PermissionsProvider({ children }) {
 export function usePermissions() {
   return useContext(PermissionsContext);
 }
+

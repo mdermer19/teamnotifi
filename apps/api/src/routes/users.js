@@ -6,13 +6,10 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 const userInclude = {
-  locationAccess: {
-    include: { location: { select: { id: true, name: true } } },
-    orderBy: { location: { name: 'asc' } },
-  },
+  employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
 };
 
-// GET /api/users/me — current user's role + location access
+// GET /api/users/me
 router.get('/me', async (req, res) => {
   if (!req.appUser) return res.status(401).json({ error: 'Not authenticated' });
   res.json(req.appUser);
@@ -31,21 +28,28 @@ router.get('/', requireRole('super_admin'), async (req, res) => {
   }
 });
 
-// PUT /api/users/:id — update role and/or location access (super_admin only)
+// PUT /api/users/:id — update role (super_admin only)
 router.put('/:id', requireRole('super_admin'), async (req, res) => {
-  const { role, locationIds } = req.body;
+  const { role } = req.body;
   try {
     const updated = await prisma.appUser.update({
       where: { id: parseInt(req.params.id) },
-      data: {
-        ...(role && { role }),
-        ...(locationIds !== undefined && {
-          locationAccess: {
-            deleteMany: {},
-            create: locationIds.map(lid => ({ locationId: lid })),
-          },
-        }),
-      },
+      data: { ...(role && { role }) },
+      include: userInclude,
+    });
+    res.json(updated);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PATCH /api/users/:id/link-employee — link or unlink employee record (super_admin only)
+router.patch('/:id/link-employee', requireRole('super_admin'), async (req, res) => {
+  const { employeeId } = req.body;
+  try {
+    const updated = await prisma.appUser.update({
+      where: { id: parseInt(req.params.id) },
+      data: { employeeId: employeeId ? parseInt(employeeId) : null },
       include: userInclude,
     });
     res.json(updated);

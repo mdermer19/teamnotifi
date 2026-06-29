@@ -156,6 +156,7 @@ async function main() {
     const paylocityFields = {
       firstName:     row['Preferred/First Name'] || null,
       lastName:      row['Last Name'] || null,
+      workEmail:     row['Work Email'] || null,
       paylocityPhone,
       role:          row['Position Description'] || null,
       locationId,

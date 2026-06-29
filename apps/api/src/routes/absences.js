@@ -1,6 +1,6 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
-const { getAllowedLocationIds } = require('../middleware/appUser');
+const { getViewScope } = require('../middleware/appUser');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -21,8 +21,8 @@ router.get('/today', async (req, res) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const where = { shiftDate: { gte: today, lt: tomorrow } };
-    const allowedIds = getAllowedLocationIds(req.appUser);
-    if (allowedIds) where.locationId = { in: allowedIds };
+    const scope = await getViewScope(req.appUser);
+    if (scope) where.employeeId = { in: scope.employeeIds };
 
     const absences = await prisma.absence.findMany({
       where,
@@ -42,16 +42,10 @@ router.get('/', async (req, res) => {
     const { locationId, employeeId, reasonCode, startDate, endDate, reviewed, limit = '100', offset = '0' } = req.query;
     const where = {};
 
-    const allowedIds = getAllowedLocationIds(req.appUser);
-    if (allowedIds) where.locationId = { in: allowedIds };
+    const scope = await getViewScope(req.appUser);
+    if (scope) where.employeeId = { in: scope.employeeIds };
 
-    if (locationId) {
-      const lid = parseInt(locationId);
-      if (allowedIds && !allowedIds.includes(lid)) {
-        return res.json({ absences: [], total: 0 });
-      }
-      where.locationId = lid;
-    }
+    if (locationId) where.locationId = parseInt(locationId);
     if (employeeId) where.employeeId = parseInt(employeeId);
     if (reasonCode) where.reason = { code: reasonCode };
     if (reviewed !== undefined) where.managerAcked = reviewed === 'true';

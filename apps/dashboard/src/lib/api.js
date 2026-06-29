@@ -50,9 +50,10 @@ export function useApi() {
     getLocations: () => request('/locations'),
 
     // Users / permissions
-    getMe:      ()          => request('/users/me'),
-    getUsers:   ()          => request('/users'),
-    updateUser: (id, data)  => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    getMe:            ()              => request('/users/me'),
+    getUsers:         ()              => request('/users'),
+    updateUser:       (id, data)      => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    linkEmployee:     (id, empId)     => request(`/users/${id}/link-employee`, { method: 'PATCH', body: JSON.stringify({ employeeId: empId }) }),
 
     // Settings
     getTemplates:           ()            => request('/settings/templates'),

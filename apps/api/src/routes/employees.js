@@ -1,6 +1,6 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
-const { getAllowedLocationIds } = require('../middleware/appUser');
+const { getViewScope } = require('../middleware/appUser');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -11,19 +11,14 @@ router.get('/', async (req, res) => {
     const { locationId, active, search, isManager } = req.query;
     const where = {};
 
-    // Location restriction based on role
-    const allowedIds = getAllowedLocationIds(req.appUser);
-    if (allowedIds) {
-      where.locationId = { in: allowedIds };
+    // Scope restriction based on role
+    const scope = await getViewScope(req.appUser);
+    if (scope) {
+      where.id = { in: scope.employeeIds };
     }
 
-    // Override with specific location filter (must still be within allowed)
     if (locationId) {
-      const lid = parseInt(locationId);
-      if (allowedIds && !allowedIds.includes(lid)) {
-        return res.json([]); // requested location not in allowed set
-      }
-      where.locationId = lid;
+      where.locationId = parseInt(locationId);
     }
 
     if (active !== undefined) where.active = active === 'true';
@@ -129,20 +124,6 @@ router.patch('/:id/manager', async (req, res) => {
     const role = req.appUser?.role;
     if (role === 'manager') {
       return res.status(403).json({ error: 'Managers cannot change manager status' });
-    }
-
-    // Admins can only toggle employees in their allowed locations
-    if (role === 'admin') {
-      const allowedIds = getAllowedLocationIds(req.appUser);
-      if (allowedIds) {
-        const emp = await prisma.employee.findUnique({
-          where: { id: parseInt(req.params.id) },
-          select: { locationId: true },
-        });
-        if (emp && !allowedIds.includes(emp.locationId)) {
-          return res.status(403).json({ error: 'Cannot modify employees outside your locations' });
-        }
-      }
     }
 
     const { isManager } = req.body;
