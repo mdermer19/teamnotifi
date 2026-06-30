@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useApi } from '../lib/api';
 import ConversationModal from '../components/ConversationModal';
 import { formatShiftRange } from '../lib/dates';
+import { useTimezone } from '../lib/timezone';
 
 const REASON_COLORS = {
   SICK: 'badge-red',
@@ -17,13 +18,6 @@ function ymd(iso) {
   return new Date(iso).toISOString().slice(0, 10);
 }
 
-// Today's local calendar date as YYYY-MM-DD.
-function todayYmd() {
-  const n = new Date();
-  const p = x => String(x).padStart(2, '0');
-  return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
-}
-
 // Friendly header for a date bucket, relative to today.
 function bucketLabel(key, today) {
   const d = new Date(key + 'T00:00:00Z');
@@ -35,6 +29,7 @@ function bucketLabel(key, today) {
 }
 
 function AbsenceRow({ absence, onView }) {
+  const { fmtDateTime } = useTimezone();
   const details = [];
   if (absence.drNotePromised === true) details.push('Dr. note promised');
   if (absence.drNotePromised === false) details.push('No dr. note — 2 pts');
@@ -69,7 +64,7 @@ function AbsenceRow({ absence, onView }) {
           <p className="text-sm text-slate-500 mt-1">{details.join(' · ')}</p>
         )}
         <p className="text-xs text-slate-400 mt-0.5">
-          Reported {absence.reportedAt ? new Date(absence.reportedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'} · Click to view conversation
+          Reported {fmtDateTime(absence.reportedAt)} · Click to view conversation
         </p>
       </div>
     </div>
@@ -78,6 +73,7 @@ function AbsenceRow({ absence, onView }) {
 
 export default function Today() {
   const api = useApi();
+  const { fmtTime, localDateStr } = useTimezone();
   const [absences, setAbsences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -103,8 +99,8 @@ export default function Today() {
     return () => clearInterval(interval);
   }, [load]);
 
-  const today = todayYmd();
-  const todayLong = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const today = localDateStr();
+  const todayLong = new Date(today + 'T00:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
 
   // Bucket absences by date — a multi-day absence that began before today
   // shows under Today (they're out now); everything else under its start date.
@@ -184,7 +180,7 @@ export default function Today() {
       )}
 
       <p className="text-xs text-slate-400 mt-6 text-center">
-        Last refreshed {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · auto-refreshes every 30s
+        Last refreshed {fmtTime(lastRefresh)} · auto-refreshes every 30s
       </p>
 
       {viewing && (

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import { usePermissions } from '../hooks/usePermissions';
+import { TimezonePicker } from '../lib/timezone';
 
 const baseNav = [
   { to: '/', label: "Today's Board", icon: '📋', exact: true },
@@ -87,7 +88,11 @@ export default function Layout({ children }) {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-forest-dark">
+        <div className="p-4 border-t border-forest-dark space-y-3">
+          <div>
+            <label className="block text-xs text-white/60 mb-1">🕐 Display time zone</label>
+            <TimezonePicker dark />
+          </div>
           <div className="flex items-center gap-2">
             <UserButton afterSignOutUrl="/" />
             <span className="text-sm text-white/70">Account</span>

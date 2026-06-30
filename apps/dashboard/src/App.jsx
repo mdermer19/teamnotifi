@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SignIn, SignedIn, SignedOut } from '@clerk/clerk-react';
 import { PermissionsProvider } from './hooks/usePermissions';
+import { TimezoneProvider } from './lib/timezone';
 import Layout from './components/Layout';
 import Today from './pages/Today';
 import Absences from './pages/Absences';
@@ -28,6 +29,7 @@ export default function App() {
         <LoginPage />
       </SignedOut>
       <SignedIn>
+        <TimezoneProvider>
         <PermissionsProvider>
           <Layout>
             <Routes>
@@ -42,6 +44,7 @@ export default function App() {
             </Routes>
           </Layout>
         </PermissionsProvider>
+        </TimezoneProvider>
       </SignedIn>
     </BrowserRouter>
   );

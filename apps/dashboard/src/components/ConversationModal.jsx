@@ -1,16 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useApi } from '../lib/api';
 import { formatShiftRangeLong } from '../lib/dates';
-
-function formatTime(d) {
-  return new Date(d).toLocaleString('en-US', {
-    month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
+import { useTimezone } from '../lib/timezone';
 
 export default function ConversationModal({ absence, onClose }) {
   const api = useApi();
+  const { fmtDateTime: formatTime } = useTimezone();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
