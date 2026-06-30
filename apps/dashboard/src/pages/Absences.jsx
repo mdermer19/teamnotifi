@@ -21,7 +21,6 @@ export default function Absences() {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [ackingId, setAckingId] = useState(null);
   const [viewing, setViewing] = useState(null);
 
   const [filters, setFilters] = useState({
@@ -29,7 +28,6 @@ export default function Absences() {
     endDate: '',
     locationId: '',
     reasonCode: '',
-    reviewed: '',
     search: '',
   });
 
@@ -41,7 +39,6 @@ export default function Absences() {
         endDate: filters.endDate || undefined,
         locationId: filters.locationId || undefined,
         reasonCode: filters.reasonCode || undefined,
-        reviewed: filters.reviewed !== '' ? filters.reviewed : undefined,
         limit: '200',
       };
       const [result, locs] = await Promise.all([
@@ -59,21 +56,6 @@ export default function Absences() {
   }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
-
-  async function handleAck(id) {
-    setAckingId(id);
-    try {
-      const updated = await api.ackAbsence(id);
-      setData(prev => ({
-        ...prev,
-        absences: prev.absences.map(a => a.id === id ? updated : a),
-      }));
-    } catch (e) {
-      alert('Failed to mark as reviewed: ' + e.message);
-    } finally {
-      setAckingId(null);
-    }
-  }
 
   function setFilter(key, val) {
     setFilters(f => ({ ...f, [key]: val }));
@@ -147,14 +129,6 @@ export default function Absences() {
               <option value="OTHER">Other</option>
             </select>
           </div>
-          <div>
-            <label className="label">Status</label>
-            <select className="input" value={filters.reviewed} onChange={e => setFilter('reviewed', e.target.value)}>
-              <option value="">All</option>
-              <option value="false">Unreviewed</option>
-              <option value="true">Reviewed</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -180,8 +154,6 @@ export default function Absences() {
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Date</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Reason</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Details</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Status</th>
-                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -194,7 +166,7 @@ export default function Absences() {
                   if (absence.notes) details.push(absence.notes);
 
                   return (
-                    <tr key={absence.id} onClick={() => setViewing(absence)} className={`hover:bg-slate-50 cursor-pointer ${!absence.managerAcked ? 'bg-amber-50/40' : ''}`}>
+                    <tr key={absence.id} onClick={() => setViewing(absence)} className="hover:bg-slate-50 cursor-pointer">
                       <td className="px-4 py-3">
                         <div className="font-medium text-slate-900">
                           {absence.employee.firstName} {absence.employee.lastName}
@@ -218,24 +190,6 @@ export default function Absences() {
                       </td>
                       <td className="px-4 py-3 text-slate-500 max-w-xs truncate">
                         {details.join(' · ') || '—'}
-                      </td>
-                      <td className="px-4 py-3">
-                        {absence.managerAcked ? (
-                          <span className="badge-green">Reviewed</span>
-                        ) : (
-                          <span className="badge-amber">Pending</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!absence.managerAcked && (
-                          <button
-                            onClick={() => handleAck(absence.id)}
-                            disabled={ackingId === absence.id}
-                            className="btn-ghost text-forest font-medium"
-                          >
-                            {ackingId === absence.id ? 'Saving…' : 'Mark Reviewed'}
-                          </button>
-                        )}
                       </td>
                     </tr>
                   );

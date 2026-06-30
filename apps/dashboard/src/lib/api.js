@@ -33,7 +33,6 @@ export function useApi() {
     // Absences
     getTodaysAbsences: () => request('/absences/today'),
     getAbsences: (params = {}) => request(`/absences${buildQs(params)}`),
-    ackAbsence:         (id)       => request(`/absences/${id}/ack`, { method: 'POST' }),
     updateAbsence:      (id, data) => request(`/absences/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     getAbsenceMessages: (id)       => request(`/absences/${id}/messages`),
 

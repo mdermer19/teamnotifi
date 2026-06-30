@@ -51,11 +51,6 @@ export default function ConversationModal({ absence, onClose }) {
           {absence.proofPromised === false && <div className="text-slate-600">ℹ️ No proof provided</div>}
           {absence.notes && <div className="text-slate-600">💬 Details: {absence.notes}</div>}
           {absence.lateCallout && <div className="text-amber-700">⏰ Late notice callout</div>}
-          {absence.managerAcked && (
-            <div className="text-green-700">
-              ✅ Reviewed {absence.ackedAt ? `· ${formatTime(absence.ackedAt)}` : ''}
-            </div>
-          )}
         </div>
 
         {/* Conversation thread */}

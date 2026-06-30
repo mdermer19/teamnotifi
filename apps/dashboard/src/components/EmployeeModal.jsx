@@ -103,10 +103,6 @@ export default function EmployeeModal({ employee, onClose }) {
                       <span className={REASON_COLORS[a.reason?.code] || 'badge-slate'}>
                         {a.reason?.label}
                       </span>
-                      {a.managerAcked
-                        ? <span className="badge-green">Reviewed</span>
-                        : <span className="badge-amber">Pending</span>
-                      }
                       <span className="text-slate-300 text-sm">›</span>
                     </div>
                   </div>

@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { getViewScope } = require('../middleware/appUser');
+const { businessDayBounds } = require('../lib/businessDate');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -9,18 +10,13 @@ const absenceInclude = {
   employee: { select: { id: true, firstName: true, lastName: true, role: true } },
   location: { select: { id: true, name: true, brand: true } },
   reason: { select: { id: true, code: true, label: true } },
-  ackedByEmp: { select: { id: true, firstName: true, lastName: true } },
 };
 
 // GET /api/absences/today — must come before /:id
 router.get('/today', async (req, res) => {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const where = { shiftDate: { gte: today, lt: tomorrow } };
+    const { start, end } = businessDayBounds();
+    const where = { shiftDate: { gte: start, lt: end } };
     const scope = await getViewScope(req.appUser);
     if (scope) where.employeeId = { in: scope.employeeIds };
 
@@ -39,7 +35,7 @@ router.get('/today', async (req, res) => {
 // GET /api/absences
 router.get('/', async (req, res) => {
   try {
-    const { locationId, employeeId, reasonCode, startDate, endDate, reviewed, limit = '100', offset = '0' } = req.query;
+    const { locationId, employeeId, reasonCode, startDate, endDate, limit = '100', offset = '0' } = req.query;
     const where = {};
 
     const scope = await getViewScope(req.appUser);
@@ -48,7 +44,6 @@ router.get('/', async (req, res) => {
     if (locationId) where.locationId = parseInt(locationId);
     if (employeeId) where.employeeId = parseInt(employeeId);
     if (reasonCode) where.reason = { code: reasonCode };
-    if (reviewed !== undefined) where.managerAcked = reviewed === 'true';
 
     if (startDate || endDate) {
       where.shiftDate = {};
@@ -126,28 +121,6 @@ router.get('/:id/messages', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch messages' });
-  }
-});
-
-// POST /api/absences/:id/ack — mark reviewed
-router.post('/:id/ack', async (req, res) => {
-  try {
-    const id = parseInt(req.params.id);
-    const absence = await prisma.absence.findUnique({ where: { id } });
-    if (!absence) return res.status(404).json({ error: 'Not found' });
-
-    const updated = await prisma.absence.update({
-      where: { id },
-      data: {
-        managerAcked: true,
-        ackedAt: new Date(),
-      },
-      include: absenceInclude,
-    });
-    res.json(updated);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to acknowledge absence' });
   }
 });
 

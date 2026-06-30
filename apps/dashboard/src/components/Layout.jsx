@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import { usePermissions } from '../hooks/usePermissions';
@@ -10,9 +11,8 @@ const baseNav = [
 ];
 
 export default function Layout({ children }) {
-  const { canManagePermissions } = usePermissions() || {};
-
-  const { isSuperAdmin } = usePermissions() || {};
+  const { canManagePermissions, isSuperAdmin } = usePermissions() || {};
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const nav = [
     ...baseNav,
@@ -22,11 +22,48 @@ export default function Layout({ children }) {
   ];
 
   return (
-    <div className="min-h-screen bg-white flex">
-      {/* Sidebar */}
-      <aside className="w-56 bg-forest text-white flex flex-col flex-shrink-0 h-screen sticky top-0">
-        <div className="p-3 border-b border-forest-dark flex items-center justify-center">
+    <div className="min-h-screen bg-white md:flex">
+      {/* Mobile top bar */}
+      <header className="md:hidden sticky top-0 z-30 flex items-center gap-3 bg-forest text-white px-4 h-14">
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="Open menu"
+          className="p-1 -ml-1"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <img src="/logo.png" alt="TeamNotifi" className="h-9 w-9 rounded-lg object-cover" />
+        <span className="font-semibold">TeamNotifi</span>
+      </header>
+
+      {/* Backdrop (mobile only, when drawer open) */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Sidebar — drawer on mobile, permanent on desktop */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-56 bg-forest text-white flex flex-col transform transition-transform duration-200 ease-in-out
+          md:static md:h-screen md:sticky md:top-0 md:translate-x-0 md:z-auto md:flex-shrink-0
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <div className="p-3 border-b border-forest-dark flex items-center justify-center relative">
           <img src="/logo.png" alt="TeamNotifi" className="h-20 w-20 rounded-xl object-cover" />
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+            className="md:hidden absolute right-3 top-3 p-1 text-white/80 hover:text-white"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
@@ -35,6 +72,7 @@ export default function Layout({ children }) {
               key={to}
               to={to}
               end={exact}
+              onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
@@ -58,7 +96,7 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto min-w-0">
         {children}
       </main>
     </div>

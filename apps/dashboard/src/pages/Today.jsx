@@ -10,19 +10,7 @@ const REASON_COLORS = {
   OTHER: 'badge-slate',
 };
 
-function AbsenceRow({ absence, onAck, onView }) {
-  const [acking, setAcking] = useState(false);
-
-  async function handleAck(e) {
-    e.stopPropagation();
-    setAcking(true);
-    try {
-      await onAck(absence.id);
-    } finally {
-      setAcking(false);
-    }
-  }
-
+function AbsenceRow({ absence, onView }) {
   const details = [];
   if (absence.drNotePromised === true) details.push('Dr. note promised');
   if (absence.drNotePromised === false) details.push('No dr. note — 2 pts');
@@ -36,7 +24,7 @@ function AbsenceRow({ absence, onAck, onView }) {
   return (
     <div
       onClick={() => onView(absence)}
-      className={`flex items-start gap-4 p-4 rounded-lg border cursor-pointer hover:shadow-sm transition-shadow ${absence.managerAcked ? 'bg-slate-50 border-slate-100' : 'bg-white border-amber-200'}`}
+      className="flex items-start gap-4 p-4 rounded-lg border border-slate-100 bg-white cursor-pointer hover:shadow-sm transition-shadow"
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -52,9 +40,6 @@ function AbsenceRow({ absence, onAck, onView }) {
           {absence.lateCallout && (
             <span className="badge bg-orange-100 text-orange-700">Late notice</span>
           )}
-          {absence.managerAcked && (
-            <span className="badge-green">Reviewed</span>
-          )}
         </div>
         <div className="flex items-center gap-3 mt-1">
           <p className="text-sm font-medium text-slate-700">
@@ -68,18 +53,12 @@ function AbsenceRow({ absence, onAck, onView }) {
           Reported {absence.reportedAt ? new Date(absence.reportedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} · Click to view conversation
         </p>
       </div>
-      {!absence.managerAcked && (
-        <button onClick={handleAck} disabled={acking} className="btn-primary text-sm flex-shrink-0">
-          {acking ? 'Saving…' : 'Mark Reviewed'}
-        </button>
-      )}
     </div>
   );
 }
 
-function LocationCard({ name, brand, absences, onAck, onView }) {
+function LocationCard({ name, brand, absences, onView }) {
   const [open, setOpen] = useState(true);
-  const unreviewed = absences.filter(a => !a.managerAcked).length;
 
   return (
     <div className="card overflow-hidden">
@@ -96,20 +75,15 @@ function LocationCard({ name, brand, absences, onAck, onView }) {
             <div className="text-xs text-slate-500">{brand}</div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {unreviewed > 0 && (
-            <span className="badge-amber">{unreviewed} unreviewed</span>
-          )}
-          <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
+        <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
 
       {open && absences.length > 0 && (
         <div className="border-t border-slate-100 p-4 space-y-2">
           {absences.map(a => (
-            <AbsenceRow key={a.id} absence={a} onAck={onAck} onView={onView} />
+            <AbsenceRow key={a.id} absence={a} onView={onView} />
           ))}
         </div>
       )}
@@ -155,14 +129,8 @@ export default function Today() {
     return () => clearInterval(interval);
   }, [load]);
 
-  async function handleAck(id) {
-    const updated = await api.ackAbsence(id);
-    setAbsences(prev => prev.map(a => a.id === id ? updated : a));
-  }
-
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const total = absences.length;
-  const unreviewed = absences.filter(a => !a.managerAcked).length;
 
   // Group absences by location
   const byLocation = locations.map(loc => ({
@@ -183,7 +151,7 @@ export default function Today() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Today's Board</h1>
@@ -194,12 +162,6 @@ export default function Today() {
             <div className="text-2xl font-bold text-forest tabular-nums">{total}</div>
             <div className="text-xs text-slate-500">out today</div>
           </div>
-          {unreviewed > 0 && (
-            <div className="text-right">
-              <div className="text-2xl font-bold text-amber-600 tabular-nums">{unreviewed}</div>
-              <div className="text-xs text-slate-500">unreviewed</div>
-            </div>
-          )}
           <button onClick={load} className="btn-ghost" title="Refresh">
             ↻ Refresh
           </button>
@@ -226,7 +188,6 @@ export default function Today() {
               name={loc.name}
               brand={loc.brand}
               absences={loc.absences}
-              onAck={handleAck}
               onView={setViewing}
             />
           ))}
@@ -236,7 +197,6 @@ export default function Today() {
               name="Other"
               brand=""
               absences={ungrouped}
-              onAck={handleAck}
               onView={setViewing}
             />
           )}

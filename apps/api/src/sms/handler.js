@@ -3,6 +3,7 @@ const { getOrCreateSession, updateSession, closeSession } = require('./session')
 const { notifyManager } = require('../services/notify');
 const { parseIntent } = require('../services/ai');
 const { getWorkflowSetting } = require('../services/settingsCache');
+const { businessToday, calendarDate } = require('../lib/businessDate');
 const M = require('./messages');
 
 const prisma = new PrismaClient();
@@ -25,13 +26,12 @@ async function logMessage(phone, direction, body, absenceId = null) {
 
 function parseDate(input) {
   const val = input.trim().toUpperCase();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = businessToday();
 
   if (val === 'TODAY') return today;
   if (val === 'TOMORROW') {
     const d = new Date(today);
-    d.setDate(d.getDate() + 1);
+    d.setUTCDate(d.getUTCDate() + 1);
     return d;
   }
 
@@ -39,8 +39,8 @@ function parseDate(input) {
   if (match) {
     const year = match[3]
       ? (match[3].length === 2 ? 2000 + parseInt(match[3]) : parseInt(match[3]))
-      : today.getFullYear();
-    const date = new Date(year, parseInt(match[1]) - 1, parseInt(match[2]));
+      : today.getUTCFullYear();
+    const date = calendarDate(year, parseInt(match[1]), parseInt(match[2]));
     if (!isNaN(date.getTime())) return date;
   }
   return null;
