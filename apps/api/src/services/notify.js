@@ -70,20 +70,20 @@ function buildMessage(absence) {
     dateStr = new Date(absence.shiftDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  let msg = `${location.name.toUpperCase()} CALLOUT — ${employee.firstName} ${employee.lastName}${role} | ${dateStr}\nReason: ${reason.label}`;
+  let msg = `TeamNotifi: ${employee.firstName} ${employee.lastName}${role} at ${location.name} reported an absence for ${dateStr}. Reason: ${reason.label}.`;
 
   if (reason.code === 'SICK') {
-    msg += absence.drNotePromised ? '\nDr. note promised within 48hrs' : '\nNo dr. note — 2 pts';
+    msg += absence.drNotePromised ? " Doctor's note promised within 48 hours." : " No doctor's note (2 points).";
   } else if (reason.code === 'EMERG') {
-    if (absence.notes) msg += `\nDetails: ${absence.notes}`;
-    msg += `\nProof promised: ${absence.proofPromised ? 'YES' : 'NO'}`;
+    if (absence.notes) msg += ` Details: ${absence.notes}.`;
+    msg += ` Proof promised: ${absence.proofPromised ? 'yes' : 'no'}.`;
   } else if (reason.code === 'LATE') {
-    msg += '\nLate arrival — 1 pt if >7 min';
+    msg += ' Late arrival (1 point if more than 7 minutes).';
   } else if (reason.code === 'OTHER') {
-    if (absence.notes) msg += `\nDetails: ${absence.notes}`;
+    if (absence.notes) msg += ` Details: ${absence.notes}.`;
   }
 
-  msg += `\nView: ${process.env.DASHBOARD_URL || 'http://localhost:5173'}/absences`;
+  msg += ' See details in the TeamNotifi dashboard.';
   return msg;
 }
 
