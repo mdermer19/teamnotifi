@@ -356,7 +356,7 @@ export default function Coverage() {
       <div className="card overflow-hidden">
         <div className="p-4 border-b">
           <h2 className="font-semibold text-slate-900">Team Subscriptions</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Permanent — these managers receive notifications for additional teams on top of their own</p>
+          <p className="text-xs text-slate-500 mt-0.5">These managers receive notifications for additional teams on top of their own until the subscription is cancelled</p>
         </div>
 
         {subscriptions.length === 0 ? (
