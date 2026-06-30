@@ -34,9 +34,9 @@ router.get('/:id', async (req, res) => {
 // POST /api/locations
 router.post('/', async (req, res) => {
   try {
-    const { name, brand, region, storeNumber, twilioNumber } = req.body;
+    const { name, brand, region, storeNumber, twilioNumber, timezone } = req.body;
     const location = await prisma.location.create({
-      data: { name, brand, region, storeNumber, twilioNumber },
+      data: { name, brand, region, storeNumber, twilioNumber, ...(timezone && { timezone }) },
     });
     res.status(201).json(location);
   } catch (err) {
@@ -47,10 +47,10 @@ router.post('/', async (req, res) => {
 // PUT /api/locations/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { name, brand, region, storeNumber, twilioNumber, active } = req.body;
+    const { name, brand, region, storeNumber, twilioNumber, active, timezone } = req.body;
     const location = await prisma.location.update({
       where: { id: parseInt(req.params.id) },
-      data: { name, brand, region, storeNumber, twilioNumber, active },
+      data: { name, brand, region, storeNumber, twilioNumber, active, ...(timezone !== undefined && { timezone }) },
     });
     res.json(location);
   } catch (err) {

@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const { clerkClient, getAuth } = require('@clerk/express');
+const { localToday, coverageActiveNow } = require('../lib/businessDate');
 
 const prisma = new PrismaClient();
 
@@ -27,13 +28,45 @@ async function getSubordinateIds(managerId) {
   return [...ids];
 }
 
-// Returns null (see all) for super_admin/admin, or { employeeIds } for managers
+// Returns null (see all) for super_admin/admin, or { employeeIds } for
+// managers. A manager's scope is their own supervisor chain, PLUS the chain
+// of any team they subscribe to (permanent while the subscription exists),
+// PLUS the chain of any manager they're actively covering (only while the
+// coverage window is active).
 async function getViewScope(appUser) {
   if (!appUser) return { employeeIds: [] };
   if (appUser.role === 'super_admin' || appUser.role === 'admin') return null;
   if (!appUser.employeeId) return { employeeIds: [] };
-  const employeeIds = await getSubordinateIds(appUser.employeeId);
-  return { employeeIds };
+
+  const me = appUser.employeeId;
+  const ids = new Set();
+
+  // 1. Own supervisor chain
+  for (const id of await getSubordinateIds(me)) ids.add(id);
+
+  // 2. Subscribed teams (permanent while subscription exists)
+  const subs = await prisma.teamSubscription.findMany({ where: { subscriberId: me } });
+  for (const s of subs) {
+    for (const id of await getSubordinateIds(s.teamOwnerId)) ids.add(id);
+  }
+
+  // 3. Active coverage periods where I'm a coverer (only while active now)
+  const today = localToday();
+  const coverages = await prisma.tempCoverage.findMany({
+    where: {
+      active: true,
+      startDate: { lte: new Date() },
+      endDate: { gte: today },
+      coverers: { some: { managerId: me } },
+    },
+  });
+  for (const c of coverages) {
+    if (coverageActiveNow(c)) {
+      for (const id of await getSubordinateIds(c.absentManagerId)) ids.add(id);
+    }
+  }
+
+  return { employeeIds: [...ids] };
 }
 
 async function withAppUser(req, res, next) {

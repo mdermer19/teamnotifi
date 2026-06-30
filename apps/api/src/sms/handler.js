@@ -3,7 +3,7 @@ const { getOrCreateSession, updateSession, closeSession } = require('./session')
 const { notifyManager } = require('../services/notify');
 const { parseIntent } = require('../services/ai');
 const { getWorkflowSetting } = require('../services/settingsCache');
-const { businessToday, calendarDate } = require('../lib/businessDate');
+const { localToday, calendarDate } = require('../lib/businessDate');
 const M = require('./messages');
 
 const prisma = new PrismaClient();
@@ -24,9 +24,19 @@ async function logMessage(phone, direction, body, absenceId = null) {
   await prisma.smsMessage.create({ data: { phone, direction, body, absenceId } }).catch(() => {});
 }
 
-function parseDate(input) {
+// Timezone for an employee's home location (drives their local "today").
+async function employeeTz(employeeId) {
+  if (!employeeId) return undefined;
+  const emp = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    include: { location: { select: { timezone: true } } },
+  });
+  return emp?.location?.timezone || undefined;
+}
+
+function parseDate(input, tz) {
   const val = input.trim().toUpperCase();
-  const today = businessToday();
+  const today = localToday(tz);
 
   if (val === 'TODAY') return today;
   if (val === 'TOMORROW') {
@@ -148,13 +158,14 @@ async function handleInbound(rawPhone, body) {
   }
 
   async function resolveDate(stateKey) {
-    const d = parseDate(input);
+    const tz = await employeeTz(ctx.employeeId);
+    const d = parseDate(input, tz);
     if (d) return d;
     const ai = await parseIntent(stateKey, input);
     if (!ai || ai.intent === 'UNKNOWN') return null;
-    if (ai.intent === 'TODAY') return parseDate('TODAY');
-    if (ai.intent === 'TOMORROW') return parseDate('TOMORROW');
-    if (ai.intent === 'DATE' && ai.value) return parseDate(ai.value);
+    if (ai.intent === 'TODAY') return parseDate('TODAY', tz);
+    if (ai.intent === 'TOMORROW') return parseDate('TOMORROW', tz);
+    if (ai.intent === 'DATE' && ai.value) return parseDate(ai.value, tz);
     return null;
   }
 

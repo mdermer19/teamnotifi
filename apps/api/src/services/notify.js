@@ -1,23 +1,9 @@
 const twilio = require('twilio');
 const { PrismaClient } = require('@prisma/client');
+const { coverageActiveNow } = require('../lib/businessDate');
 
 const prisma = new PrismaClient();
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
-function coverageActiveNow(c) {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const nowDateMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-
-  const startMs = new Date(c.startDate).setHours(0, 0, 0, 0);
-  const endMs   = new Date(c.endDate).setHours(0, 0, 0, 0);
-
-  if (nowDateMs < startMs || nowDateMs > endMs) return false;
-  if (nowDateMs === startMs && nowTime < c.startTime) return false;
-  if (nowDateMs === endMs   && nowTime > c.endTime)   return false;
-  return true;
-}
 
 async function resolveRecipients(managerId) {
   const today = new Date();
@@ -27,7 +13,7 @@ async function resolveRecipients(managerId) {
     const cs = await prisma.tempCoverage.findMany({
       where: { absentManagerId: empId, active: true, startDate: { lte: new Date() }, endDate: { gte: today } },
     });
-    return cs.some(coverageActiveNow);
+    return cs.some(c => coverageActiveNow(c));
   }
 
   const recipientIds = new Set();
@@ -37,7 +23,7 @@ async function resolveRecipients(managerId) {
     where: { absentManagerId: managerId, active: true, startDate: { lte: new Date() }, endDate: { gte: today } },
     include: { coverers: true },
   });
-  const primaryCoverage = candidateCoverages.find(coverageActiveNow) || null;
+  const primaryCoverage = candidateCoverages.find(c => coverageActiveNow(c)) || null;
 
   if (primaryCoverage) {
     for (const c of primaryCoverage.coverers) {

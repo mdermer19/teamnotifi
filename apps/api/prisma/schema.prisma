@@ -14,6 +14,7 @@ model Location {
   region       String?
   storeNumber  Int?     @map("store_number")
   twilioNumber String?  @map("twilio_number")
+  timezone     String   @default("America/New_York")
   active       Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at")
 

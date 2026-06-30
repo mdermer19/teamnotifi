@@ -1,30 +1,40 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { getViewScope } = require('../middleware/appUser');
-const { businessDayBounds } = require('../lib/businessDate');
+const { localDateStr, dateStr } = require('../lib/businessDate');
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 const absenceInclude = {
   employee: { select: { id: true, firstName: true, lastName: true, role: true } },
-  location: { select: { id: true, name: true, brand: true } },
+  location: { select: { id: true, name: true, brand: true, timezone: true } },
   reason: { select: { id: true, code: true, label: true } },
 };
 
 // GET /api/absences/today — must come before /:id
 router.get('/today', async (req, res) => {
   try {
-    const { start, end } = businessDayBounds();
-    const where = { shiftDate: { gte: start, lt: end } };
+    // Fetch a ±1 day UTC window (wide enough to cover "today" in any US
+    // timezone), then keep only absences whose shiftDate equals the current
+    // local date in their own location's timezone.
+    const now = new Date();
+    const lo = new Date(now); lo.setUTCDate(lo.getUTCDate() - 1); lo.setUTCHours(0, 0, 0, 0);
+    const hi = new Date(now); hi.setUTCDate(hi.getUTCDate() + 2); hi.setUTCHours(0, 0, 0, 0);
+
+    const where = { shiftDate: { gte: lo, lt: hi } };
     const scope = await getViewScope(req.appUser);
     if (scope) where.employeeId = { in: scope.employeeIds };
 
-    const absences = await prisma.absence.findMany({
+    const candidates = await prisma.absence.findMany({
       where,
       include: absenceInclude,
       orderBy: { reportedAt: 'desc' },
     });
+
+    const absences = candidates.filter(a =>
+      dateStr(a.shiftDate) === localDateStr(a.location?.timezone || undefined)
+    );
     res.json(absences);
   } catch (err) {
     console.error(err);
