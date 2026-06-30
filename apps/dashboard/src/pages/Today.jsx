@@ -10,6 +10,30 @@ const REASON_COLORS = {
   OTHER: 'badge-slate',
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Calendar-date string (YYYY-MM-DD) for a stored shiftDate (UTC midnight).
+function ymd(iso) {
+  return new Date(iso).toISOString().slice(0, 10);
+}
+
+// Today's local calendar date as YYYY-MM-DD.
+function todayYmd() {
+  const n = new Date();
+  const p = x => String(x).padStart(2, '0');
+  return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+}
+
+// Friendly header for a date bucket, relative to today.
+function bucketLabel(key, today) {
+  const d = new Date(key + 'T00:00:00Z');
+  const long = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const tomorrow = ymd(new Date(new Date(today + 'T00:00:00Z').getTime() + DAY_MS).toISOString());
+  if (key === today) return `Today · ${long}`;
+  if (key === tomorrow) return `Tomorrow · ${long}`;
+  return long;
+}
+
 function AbsenceRow({ absence, onView }) {
   const details = [];
   if (absence.drNotePromised === true) details.push('Dr. note promised');
@@ -18,7 +42,6 @@ function AbsenceRow({ absence, onView }) {
   if (absence.proofPromised === false) details.push('No proof provided');
   if (absence.notes) details.push(absence.notes);
 
-  const shiftDate = formatShiftRange(absence.shiftDate, absence.returnDate);
   const multiDay = !!absence.returnDate;
 
   return (
@@ -31,68 +54,24 @@ function AbsenceRow({ absence, onView }) {
           <span className="font-semibold text-slate-900">
             {absence.employee.firstName} {absence.employee.lastName}
           </span>
-          {absence.employee.role && (
-            <span className="text-xs text-slate-500 capitalize">{absence.employee.role.replace('_', ' ')}</span>
-          )}
+          <span className="text-xs text-slate-500">{absence.location.name}</span>
           <span className={REASON_COLORS[absence.reason.code] || 'badge-slate'}>
             {absence.reason.label}
           </span>
+          {multiDay && (
+            <span className="badge bg-blue-100 text-blue-700">{formatShiftRange(absence.shiftDate, absence.returnDate)}</span>
+          )}
           {absence.lateCallout && (
             <span className="badge bg-orange-100 text-orange-700">Late notice</span>
           )}
         </div>
-        <div className="flex items-center gap-3 mt-1">
-          <p className="text-sm font-medium text-slate-700">
-            {multiDay ? `Out: ${shiftDate}` : `Shift date: ${shiftDate}`}
-          </p>
-          {details.length > 0 && (
-            <p className="text-sm text-slate-500">{details.join(' · ')}</p>
-          )}
-        </div>
+        {details.length > 0 && (
+          <p className="text-sm text-slate-500 mt-1">{details.join(' · ')}</p>
+        )}
         <p className="text-xs text-slate-400 mt-0.5">
-          Reported {absence.reportedAt ? new Date(absence.reportedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} · Click to view conversation
+          Reported {absence.reportedAt ? new Date(absence.reportedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'} · Click to view conversation
         </p>
       </div>
-    </div>
-  );
-}
-
-function LocationCard({ name, brand, absences, onView }) {
-  const [open, setOpen] = useState(true);
-
-  return (
-    <div className="card overflow-hidden">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-forest/10 rounded-lg flex items-center justify-center">
-            <span className="text-forest font-bold text-lg">{absences.length}</span>
-          </div>
-          <div className="text-left">
-            <div className="font-semibold text-slate-900">{name}</div>
-            <div className="text-xs text-slate-500">{brand}</div>
-          </div>
-        </div>
-        <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && absences.length > 0 && (
-        <div className="border-t border-slate-100 p-4 space-y-2">
-          {absences.map(a => (
-            <AbsenceRow key={a.id} absence={a} onView={onView} />
-          ))}
-        </div>
-      )}
-
-      {open && absences.length === 0 && (
-        <div className="border-t border-slate-100 p-5 text-sm text-slate-400 text-center">
-          All clear today
-        </div>
-      )}
     </div>
   );
 }
@@ -100,7 +79,6 @@ function LocationCard({ name, brand, absences, onView }) {
 export default function Today() {
   const api = useApi();
   const [absences, setAbsences] = useState([]);
-  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(new Date());
@@ -108,12 +86,8 @@ export default function Today() {
 
   const load = useCallback(async () => {
     try {
-      const [abs, locs] = await Promise.all([
-        api.getTodaysAbsences(),
-        api.getLocations(),
-      ]);
+      const abs = await api.getTodaysAbsences();
       setAbsences(abs);
-      setLocations(locs);
       setLastRefresh(new Date());
       setError(null);
     } catch (e) {
@@ -129,18 +103,21 @@ export default function Today() {
     return () => clearInterval(interval);
   }, [load]);
 
-  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  const total = absences.length;
+  const today = todayYmd();
+  const todayLong = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  // Group absences by location
-  const byLocation = locations.map(loc => ({
-    ...loc,
-    absences: absences.filter(a => a.location.id === loc.id),
-  }));
+  // Bucket absences by date — a multi-day absence that began before today
+  // shows under Today (they're out now); everything else under its start date.
+  const buckets = {};
+  for (const a of absences) {
+    const start = ymd(a.shiftDate);
+    const key = start < today ? today : start;
+    (buckets[key] = buckets[key] || []).push(a);
+  }
+  const orderedKeys = Object.keys(buckets).sort();
 
-  // Also catch absences with no matching location in the list
-  const knownLocIds = new Set(locations.map(l => l.id));
-  const ungrouped = absences.filter(a => !knownLocIds.has(a.location.id));
+  const outToday = (buckets[today] || []).length;
+  const upcoming = absences.length - outToday;
 
   if (loading) {
     return (
@@ -155,13 +132,19 @@ export default function Today() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Today's Board</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{today}</p>
+          <p className="text-sm text-slate-500 mt-0.5">{todayLong}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <div className="text-2xl font-bold text-forest tabular-nums">{total}</div>
+            <div className="text-2xl font-bold text-forest tabular-nums">{outToday}</div>
             <div className="text-xs text-slate-500">out today</div>
           </div>
+          {upcoming > 0 && (
+            <div className="text-right">
+              <div className="text-2xl font-bold text-slate-400 tabular-nums">{upcoming}</div>
+              <div className="text-xs text-slate-500">upcoming</div>
+            </div>
+          )}
           <button onClick={load} className="btn-ghost" title="Refresh">
             ↻ Refresh
           </button>
@@ -174,36 +157,33 @@ export default function Today() {
         </div>
       )}
 
-      {total === 0 && !error ? (
+      {absences.length === 0 && !error ? (
         <div className="card p-12 text-center">
           <div className="text-4xl mb-3">✅</div>
-          <div className="font-semibold text-slate-700">No absences reported today</div>
+          <div className="font-semibold text-slate-700">No absences today or upcoming</div>
           <div className="text-sm text-slate-400 mt-1">The board updates every 30 seconds</div>
         </div>
       ) : (
-        <div className="space-y-4">
-          {byLocation.filter(l => l.absences.length > 0 || locations.length <= 5).map(loc => (
-            <LocationCard
-              key={loc.id}
-              name={loc.name}
-              brand={loc.brand}
-              absences={loc.absences}
-              onView={setViewing}
-            />
+        <div className="space-y-6">
+          {orderedKeys.map(key => (
+            <div key={key}>
+              <div className="flex items-center gap-2 mb-2">
+                <h2 className={`text-sm font-semibold ${key === today ? 'text-forest' : 'text-slate-600'}`}>
+                  {bucketLabel(key, today)}
+                </h2>
+                <span className="text-xs text-slate-400">({buckets[key].length})</span>
+              </div>
+              <div className="space-y-2">
+                {buckets[key].map(a => (
+                  <AbsenceRow key={a.id} absence={a} onView={setViewing} />
+                ))}
+              </div>
+            </div>
           ))}
-          {ungrouped.length > 0 && (
-            <LocationCard
-              key="other"
-              name="Other"
-              brand=""
-              absences={ungrouped}
-              onView={setViewing}
-            />
-          )}
         </div>
       )}
 
-      <p className="text-xs text-slate-400 mt-4 text-center">
+      <p className="text-xs text-slate-400 mt-6 text-center">
         Last refreshed {lastRefresh.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · auto-refreshes every 30s
       </p>
 

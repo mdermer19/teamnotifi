@@ -13,32 +13,44 @@ const absenceInclude = {
 };
 
 // GET /api/absences/today — must come before /:id
+// Today + all upcoming absences (and any multi-day absence still ongoing),
+// sorted by first day out (today first). "Today" is evaluated in each
+// absence's own location timezone.
 router.get('/today', async (req, res) => {
   try {
-    // Fetch a ±1 day UTC window (wide enough to cover "today" in any US
-    // timezone), then keep only absences whose shiftDate equals the current
-    // local date in their own location's timezone.
-    const now = new Date();
-    const lo = new Date(now); lo.setUTCDate(lo.getUTCDate() - 1); lo.setUTCHours(0, 0, 0, 0);
-    const hi = new Date(now); hi.setUTCDate(hi.getUTCDate() + 2); hi.setUTCHours(0, 0, 0, 0);
+    // Prefetch from a couple days back (covers any tz, plus multi-day
+    // absences that began earlier and are still ongoing), then filter.
+    const lo = new Date(); lo.setUTCDate(lo.getUTCDate() - 2); lo.setUTCHours(0, 0, 0, 0);
 
-    const where = { shiftDate: { gte: lo, lt: hi } };
+    const where = {
+      OR: [
+        { shiftDate: { gte: lo } },
+        { returnDate: { gte: lo } },
+      ],
+    };
     const scope = await getViewScope(req.appUser);
     if (scope) where.employeeId = { in: scope.employeeIds };
 
     const candidates = await prisma.absence.findMany({
       where,
       include: absenceInclude,
-      orderBy: { reportedAt: 'desc' },
+      orderBy: { shiftDate: 'asc' },
     });
 
-    const absences = candidates.filter(a =>
-      dateStr(a.shiftDate) === localDateStr(a.location?.timezone || undefined)
-    );
+    // Keep absences whose last absent day is today-or-later in their location's
+    // local timezone (last absent day = returnDate − 1 for multi-day).
+    const absences = candidates.filter(a => {
+      const today = localDateStr(a.location?.timezone || undefined);
+      let lastDay = a.shiftDate;
+      if (a.returnDate) {
+        lastDay = new Date(new Date(a.returnDate).getTime() - 24 * 60 * 60 * 1000);
+      }
+      return dateStr(lastDay) >= today;
+    });
     res.json(absences);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to fetch today\'s absences' });
+    res.status(500).json({ error: 'Failed to fetch absences' });
   }
 });
 
