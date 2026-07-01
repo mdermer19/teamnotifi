@@ -7,7 +7,7 @@ const router = express.Router();
 const prisma = new PrismaClient();
 
 const absenceInclude = {
-  employee: { select: { id: true, firstName: true, lastName: true, role: true } },
+  employee: { select: { id: true, firstName: true, lastName: true, role: true, employeeCode: true } },
   location: { select: { id: true, name: true, brand: true, timezone: true } },
   reason: { select: { id: true, code: true, label: true } },
 };
