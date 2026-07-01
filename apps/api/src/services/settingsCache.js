@@ -20,6 +20,8 @@ const DEFAULT_TEMPLATES = {
   FAMILY_YES_PROOF: "Sounds like a plan! Your absence has been recorded for {{dateRange}}. Please send proof to your manager within 48 hours. The nature of the emergency is subject to management review. If it is determined to be a true emergency, you will not receive any points per the Attendance Policy. If it's determined this is not a true emergency or proof is required and not received within 48 hours, you will receive 2 points per the Attendance Policy.",
   FAMILY_NO_PROOF: "Ok, we understand. Your absence has been recorded for {{dateRange}}. Your manager will determine whether proof is required for this emergency. If no proof is required, then you will not receive any points per the Attendance Policy. If proof is required and not received within 48 hours, you will receive 2 points per the Attendance Policy.",
   FAMILY_REPROMPT: 'Please reply YES or NO.',
+  LATE_ARRIVAL_TIME_PROMPT: 'Approximately what time do you expect to arrive?',
+  LATE_DONE: 'Thank you for letting us know, {{firstName}}. Your manager has been notified. If you clock in within 7 minutes of your scheduled start time, you will not receive any points. If you are tardy by more than 7 minutes, you will receive 1 point per the Attendance Policy.',
   LATE_MESSAGE: 'If you clock in within 7 minutes of your scheduled start time, you will not receive any points. If you are tardy by more than 7 minutes, you will receive 1 point per the Attendance Policy.',
   OTHER_DETAILS_PROMPT: 'Please briefly describe the reason for your absence.',
   OTHER_DONE: 'Got it, {{firstName}}. Your absence has been recorded for {{dateRange}} and your manager has been notified.',

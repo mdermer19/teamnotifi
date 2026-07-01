@@ -17,6 +17,8 @@ module.exports = {
   FAMILY_YES_PROOF:     (vars = {}) => getMessage('FAMILY_YES_PROOF', vars),
   FAMILY_NO_PROOF:      (vars = {}) => getMessage('FAMILY_NO_PROOF', vars),
   FAMILY_REPROMPT:      (vars = {}) => getMessage('FAMILY_REPROMPT', vars),
+  LATE_ARRIVAL_TIME_PROMPT: (vars = {}) => getMessage('LATE_ARRIVAL_TIME_PROMPT', vars),
+  LATE_DONE:            (vars = {}) => getMessage('LATE_DONE', vars),
   LATE_MESSAGE:         (vars = {}) => getMessage('LATE_MESSAGE', vars),
   OTHER_DETAILS_PROMPT: (vars = {}) => getMessage('OTHER_DETAILS_PROMPT', vars),
   OTHER_DONE:           (vars = {}) => getMessage('OTHER_DONE', vars),

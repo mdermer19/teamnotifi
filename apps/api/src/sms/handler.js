@@ -119,6 +119,7 @@ async function logAbsence(ctx, extras = {}) {
   if (ctx.drNotePromised !== undefined) data.drNotePromised = ctx.drNotePromised;
   if (ctx.proofPromised !== undefined) data.proofPromised = ctx.proofPromised;
   if (ctx.notes !== undefined) data.notes = ctx.notes;
+  if (ctx.lateArrivalTime !== undefined) data.notes = ctx.lateArrivalTime;
   Object.assign(data, extras);
 
   const absence = await prisma.absence.create({ data });
@@ -256,9 +257,8 @@ async function handleInbound(rawPhone, body) {
     }
     if (reason === '3') {
       const newCtx = Object.assign({}, ctx, { reasonCode: 'LATE' });
-      const result = await logAbsence(newCtx);
-      await closeSession(phone);
-      return out(M.LATE_MESSAGE(await buildVars(newCtx)), result.absence ? result.absence.id : null);
+      await updateSession(phone, 'LATE_ARRIVAL_TIME', newCtx);
+      return out(M.LATE_ARRIVAL_TIME_PROMPT(await buildVars(newCtx)));
     }
     if (reason === '4') {
       const newCtx = Object.assign({}, ctx, { reasonCode: 'OTHER' });
@@ -350,6 +350,14 @@ async function handleInbound(rawPhone, body) {
       return out(M.FAMILY_NO_PROOF(await buildVars(newCtx)), result.absence ? result.absence.id : null);
     }
     return out(M.FAMILY_REPROMPT(await buildVars(ctx)));
+  }
+
+  // LATE_ARRIVAL_TIME
+  if (state === 'LATE_ARRIVAL_TIME') {
+    const updatedCtx = Object.assign({}, ctx, { lateArrivalTime: input });
+    const result = await logAbsence(updatedCtx);
+    await closeSession(phone);
+    return out(M.LATE_DONE(await buildVars(updatedCtx)), result.absence ? result.absence.id : null);
   }
 
   // OTHER_DETAILS

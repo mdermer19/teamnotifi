@@ -64,6 +64,7 @@ function buildMessage(absence) {
     if (absence.notes) msg += ` Details: ${absence.notes}.`;
     msg += ` Proof promised: ${absence.proofPromised ? 'yes' : 'no'}.`;
   } else if (reason.code === 'LATE') {
+    msg += absence.notes ? ` Expected arrival: ${absence.notes}.` : '';
     msg += ' Late arrival (1 point if more than 7 minutes).';
   } else if (reason.code === 'OTHER') {
     if (absence.notes) msg += ` Details: ${absence.notes}.`;
