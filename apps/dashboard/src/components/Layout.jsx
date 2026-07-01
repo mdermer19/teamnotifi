@@ -35,8 +35,8 @@ export default function Layout({ children }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <img src="/logo.png" alt="TeamNotifi" className="h-9 w-9 rounded-lg object-cover" />
-        <span className="font-semibold">TeamNotifi</span>
+        <img src="/logo.png" alt="" className="h-8 w-8 object-contain" />
+        <img src="/text.png" alt="TeamNotifi" className="h-6 object-contain" />
       </header>
 
       {/* Backdrop (mobile only, when drawer open) */}
@@ -54,12 +54,15 @@ export default function Layout({ children }) {
           md:static md:h-screen md:sticky md:top-0 md:translate-x-0 md:z-auto md:flex-shrink-0
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className="p-3 border-b border-forest-dark flex items-center justify-center relative">
-          <img src="/logo.png" alt="TeamNotifi" className="h-20 w-20 rounded-xl object-cover" />
+        <div className="px-4 py-3 border-b border-forest-dark flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="" className="h-10 w-10 object-contain flex-shrink-0" />
+            <img src="/text.png" alt="TeamNotifi" className="h-7 object-contain" />
+          </div>
           <button
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
-            className="md:hidden absolute right-3 top-3 p-1 text-white/80 hover:text-white"
+            className="md:hidden p-1 text-white/80 hover:text-white"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
