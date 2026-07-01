@@ -8,15 +8,15 @@ const baseNav = [
   { to: '/', label: "Today's Board", icon: '📋', exact: true },
   { to: '/absences', label: 'Absence Log', icon: '📅' },
   { to: '/employees', label: 'Roster', icon: '🧑‍💼' },
-  { to: '/coverage', label: 'Coverage', icon: '🔄' },
 ];
 
 export default function Layout({ children }) {
-  const { canManagePermissions, isSuperAdmin } = usePermissions() || {};
+  const { canManagePermissions, isSuperAdmin, isAdmin } = usePermissions() || {};
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const nav = [
     ...baseNav,
+    ...(isSuperAdmin || isAdmin ? [{ to: '/coverage', label: 'Coverage', icon: '🔄' }] : []),
     ...(canManagePermissions ? [{ to: '/permissions', label: 'Permissions', icon: '🔐' }] : []),
     ...(isSuperAdmin ? [{ to: '/settings', label: 'Settings', icon: '⚙️' }] : []),
     ...(isSuperAdmin ? [{ to: '/exception-report', label: 'Exceptions', icon: '⚠️' }] : []),

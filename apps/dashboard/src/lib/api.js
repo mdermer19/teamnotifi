@@ -48,6 +48,15 @@ export function useApi() {
     // Locations
     getLocations: () => request('/locations'),
 
+    // Coverage & team subscriptions
+    getCoverage:         (status = 'active') => request(`/coverage?status=${status}`),
+    createCoverage:      (data)     => request('/coverage', { method: 'POST', body: JSON.stringify(data) }),
+    updateCoverage:      (id, data) => request(`/coverage/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteCoverage:      (id)       => request(`/coverage/${id}`, { method: 'DELETE' }),
+    getSubscriptions:    ()         => request('/coverage/subscriptions'),
+    createSubscription:  (data)     => request('/coverage/subscriptions', { method: 'POST', body: JSON.stringify(data) }),
+    deleteSubscription:  (id)       => request(`/coverage/subscriptions/${id}`, { method: 'DELETE' }),
+
     // Users / permissions
     getMe:            ()              => request('/users/me'),
     getUsers:         ()              => request('/users'),

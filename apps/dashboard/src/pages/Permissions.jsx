@@ -11,7 +11,7 @@ const ROLE_LABELS = {
 const ROLE_DESCRIPTIONS = {
   super_admin: 'All employees · full access · manages users & permissions',
   admin: 'All employees · cannot manage users or permissions',
-  manager: 'Sees only their direct & indirect reports',
+  manager: 'Sees only their direct & indirect reports (view only)',
 };
 
 function UserRow({ user, allEmployees, onSaved }) {
@@ -236,7 +236,7 @@ export default function Permissions() {
             <ul className="text-slate-500 text-xs mt-1 space-y-0.5">
               <li>• Direct & indirect reports only</li>
               <li>• Must be linked to employee record</li>
-              <li>• View absences, assign coverage</li>
+              <li>• View absences (read only)</li>
             </ul>
           </div>
         </div>

@@ -1,8 +1,13 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const { requireRole } = require('../middleware/appUser');
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// Coverage and team subscriptions grant data visibility (see getViewScope),
+// so creating/editing them is an access-control action — admins only.
+const adminOnly = requireRole('super_admin', 'admin');
 
 const coverageInclude = {
   absentManager: { select: { id: true, firstName: true, lastName: true, role: true } },
@@ -35,7 +40,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/coverage
-router.post('/', async (req, res) => {
+router.post('/', adminOnly, async (req, res) => {
   try {
     const { absentManagerId, covererIds, startDate, startTime, endDate, endTime, reason } = req.body;
     if (!absentManagerId || !covererIds?.length || !startDate || !endDate) {
@@ -64,7 +69,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/coverage/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', adminOnly, async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const { covererIds, startDate, startTime, endDate, endTime, reason, active } = req.body;
@@ -96,7 +101,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /api/coverage/:id (soft delete)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', adminOnly, async (req, res) => {
   try {
     await prisma.tempCoverage.update({
       where: { id: parseInt(req.params.id) },
@@ -127,7 +132,7 @@ router.get('/subscriptions', async (req, res) => {
 });
 
 // POST /api/coverage/subscriptions
-router.post('/subscriptions', async (req, res) => {
+router.post('/subscriptions', adminOnly, async (req, res) => {
   try {
     const { subscriberId, teamOwnerId } = req.body;
     if (!subscriberId || !teamOwnerId) {
@@ -151,7 +156,7 @@ router.post('/subscriptions', async (req, res) => {
 });
 
 // DELETE /api/coverage/subscriptions/:id
-router.delete('/subscriptions/:id', async (req, res) => {
+router.delete('/subscriptions/:id', adminOnly, async (req, res) => {
   try {
     await prisma.teamSubscription.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ success: true });

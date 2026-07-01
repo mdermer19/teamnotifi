@@ -12,6 +12,14 @@ const absenceInclude = {
   reason: { select: { id: true, code: true, label: true } },
 };
 
+// Managers may only touch absences for employees in their scope; admins /
+// super_admins (scope === null) may touch any.
+async function canSeeAbsenceEmployee(req, employeeId) {
+  const scope = await getViewScope(req.appUser);
+  if (!scope) return true;
+  return scope.employeeIds.includes(employeeId);
+}
+
 // GET /api/absences/today — must come before /:id
 // Today + all upcoming absences (and any multi-day absence still ongoing),
 // sorted by first day out (today first). "Today" is evaluated in each
@@ -103,6 +111,9 @@ router.get('/:id', async (req, res) => {
       include: absenceInclude,
     });
     if (!absence) return res.status(404).json({ error: 'Not found' });
+    if (!(await canSeeAbsenceEmployee(req, absence.employeeId))) {
+      return res.status(403).json({ error: 'Not authorized to view this absence' });
+    }
     res.json(absence);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch absence' });
@@ -115,6 +126,9 @@ router.get('/:id/messages', async (req, res) => {
     const id = parseInt(req.params.id);
     const absence = await prisma.absence.findUnique({ where: { id } });
     if (!absence) return res.status(404).json({ error: 'Not found' });
+    if (!(await canSeeAbsenceEmployee(req, absence.employeeId))) {
+      return res.status(403).json({ error: 'Not authorized to view this conversation' });
+    }
 
     // Get employee phone to also fetch pre-absence messages in the same session
     const employee = await prisma.employee.findUnique({ where: { id: absence.employeeId } });
@@ -149,13 +163,20 @@ router.get('/:id/messages', async (req, res) => {
 // PUT /api/absences/:id
 router.put('/:id', async (req, res) => {
   try {
+    const id = parseInt(req.params.id);
+    const existing = await prisma.absence.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    if (!(await canSeeAbsenceEmployee(req, existing.employeeId))) {
+      return res.status(403).json({ error: 'Not authorized to edit this absence' });
+    }
+
     const { notes, reasonId } = req.body;
     const data = {};
     if (notes !== undefined) data.notes = notes;
     if (reasonId !== undefined) data.reasonId = parseInt(reasonId);
 
     const updated = await prisma.absence.update({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       data,
       include: absenceInclude,
     });

@@ -1,9 +1,17 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
-const { getViewScope } = require('../middleware/appUser');
+const { getViewScope, requireRole } = require('../middleware/appUser');
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+// True if the current user is allowed to see this employee id. super_admin /
+// admin (scope === null) see everyone; managers only their scoped set.
+async function canSeeEmployee(req, employeeId) {
+  const scope = await getViewScope(req.appUser);
+  if (!scope) return true;
+  return scope.employeeIds.includes(employeeId);
+}
 
 // GET /api/employees
 router.get('/', async (req, res) => {
@@ -52,8 +60,12 @@ router.get('/', async (req, res) => {
 // GET /api/employees/:id
 router.get('/:id', async (req, res) => {
   try {
+    const id = parseInt(req.params.id);
+    if (!(await canSeeEmployee(req, id))) {
+      return res.status(403).json({ error: 'Not authorized to view this employee' });
+    }
     const employee = await prisma.employee.findUnique({
-      where: { id: parseInt(req.params.id) },
+      where: { id },
       include: {
         location: true,
         manager: { select: { id: true, firstName: true, lastName: true } },
@@ -67,7 +79,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/employees
-router.post('/', async (req, res) => {
+router.post('/', requireRole('super_admin', 'admin'), async (req, res) => {
   try {
     const { firstName, lastName, phone, locationId, role, employeeCode, hireDate, isManager } = req.body;
     const employee = await prisma.employee.create({
@@ -93,7 +105,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/employees/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', requireRole('super_admin', 'admin'), async (req, res) => {
   try {
     const { firstName, lastName, phone, locationId, role, employeeCode, hireDate, isManager, active } = req.body;
     const data = {};
@@ -140,7 +152,7 @@ router.patch('/:id/manager', async (req, res) => {
 });
 
 // DELETE /api/employees/:id (soft delete)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requireRole('super_admin', 'admin'), async (req, res) => {
   try {
     await prisma.employee.update({
       where: { id: parseInt(req.params.id) },
@@ -155,8 +167,12 @@ router.delete('/:id', async (req, res) => {
 // GET /api/employees/:id/absences
 router.get('/:id/absences', async (req, res) => {
   try {
+    const id = parseInt(req.params.id);
+    if (!(await canSeeEmployee(req, id))) {
+      return res.status(403).json({ error: 'Not authorized to view this employee' });
+    }
     const absences = await prisma.absence.findMany({
-      where: { employeeId: parseInt(req.params.id) },
+      where: { employeeId: id },
       include: {
         reason: true,
         location: { select: { name: true } },

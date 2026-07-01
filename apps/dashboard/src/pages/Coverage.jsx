@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-
-const BASE = '/api';
-const req = (path, opts = {}) =>
-  fetch(`${BASE}${path}`, { headers: { 'Content-Type': 'application/json' }, ...opts }).then(r => r.json());
+import { useApi } from '../lib/api';
+import { usePermissions } from '../hooks/usePermissions';
 
 function formatDate(d) {
   if (!d) return '—';
@@ -20,6 +18,7 @@ function coverageStatus(c) {
 
 // ── Coverage Modal ──────────────────────────────────────────────────────
 function CoverageModal({ managers, existing, onClose, onSave }) {
+  const api = useApi();
   const [form, setForm] = useState({
     absentManagerId: existing?.absentManager?.id || '',
     covererIds: existing?.coverers?.map(c => c.manager.id) || [],
@@ -47,9 +46,9 @@ function CoverageModal({ managers, existing, onClose, onSave }) {
     setSaving(true); setError(null);
     try {
       if (existing) {
-        await req(`/coverage/${existing.id}`, { method: 'PUT', body: JSON.stringify(form) });
+        await api.updateCoverage(existing.id, form);
       } else {
-        await req('/coverage', { method: 'POST', body: JSON.stringify(form) });
+        await api.createCoverage(form);
       }
       onSave(); onClose();
     } catch (err) {
@@ -157,6 +156,7 @@ function CoverageModal({ managers, existing, onClose, onSave }) {
 
 // ── Subscription Modal ──────────────────────────────────────────────────
 function SubscriptionModal({ managers, onClose, onSave }) {
+  const api = useApi();
   const [subscriberId, setSubscriberId] = useState('');
   const [teamOwnerId, setTeamOwnerId] = useState('');
   const [saving, setSaving] = useState(false);
@@ -166,11 +166,7 @@ function SubscriptionModal({ managers, onClose, onSave }) {
     e.preventDefault();
     setSaving(true); setError(null);
     try {
-      const result = await req('/coverage/subscriptions', {
-        method: 'POST',
-        body: JSON.stringify({ subscriberId, teamOwnerId }),
-      });
-      if (result.error) throw new Error(result.error);
+      await api.createSubscription({ subscriberId, teamOwnerId });
       onSave(); onClose();
     } catch (err) {
       setError(err.message);
@@ -226,6 +222,9 @@ function SubscriptionModal({ managers, onClose, onSave }) {
 
 // ── Main Page ───────────────────────────────────────────────────────────
 export default function Coverage() {
+  const api = useApi();
+  const { isSuperAdmin, isAdmin, loading: permLoading } = usePermissions() || {};
+  const canManage = isSuperAdmin || isAdmin;
   const [coverage, setCoverage] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
   const [managers, setManagers] = useState([]);
@@ -237,30 +236,47 @@ export default function Coverage() {
     setLoading(true);
     try {
       const [cov, subs, emps] = await Promise.all([
-        req(`/coverage?status=${statusFilter}`),
-        req('/coverage/subscriptions'),
-        req('/employees?active=true'),
+        api.getCoverage(statusFilter),
+        api.getSubscriptions(),
+        api.getEmployees({ active: 'true' }),
       ]);
       setCoverage(Array.isArray(cov) ? cov : []);
       setSubscriptions(Array.isArray(subs) ? subs : []);
       setManagers(Array.isArray(emps) ? emps.filter(e => e.isManager) : []);
+    } catch {
+      // keep prior state on error
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (canManage) load(); else setLoading(false); }, [load, canManage]);
 
   async function deactivate(id) {
     if (!confirm('Deactivate this coverage period?')) return;
-    await req(`/coverage/${id}`, { method: 'DELETE' });
-    load();
+    try { await api.deleteCoverage(id); load(); }
+    catch (e) { alert('Failed: ' + e.message); }
   }
 
   async function removeSub(id) {
     if (!confirm('Remove this team subscription?')) return;
-    await req(`/coverage/subscriptions/${id}`, { method: 'DELETE' });
-    load();
+    try { await api.deleteSubscription(id); load(); }
+    catch (e) { alert('Failed: ' + e.message); }
+  }
+
+  if (permLoading) {
+    return <div className="flex items-center justify-center h-64 text-slate-400">Loading…</div>;
+  }
+  if (!canManage) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <div className="card p-12 text-center">
+          <div className="text-4xl mb-3">🔒</div>
+          <div className="font-semibold text-slate-700">Access Restricted</div>
+          <div className="text-sm text-slate-400 mt-1">Only Admins and Super Admins can manage coverage.</div>
+        </div>
+      </div>
+    );
   }
 
   const activeCoverage = coverage.filter(c => {

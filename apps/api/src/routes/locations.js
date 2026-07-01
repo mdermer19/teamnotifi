@@ -1,8 +1,11 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const { requireRole } = require('../middleware/appUser');
 
 const router = express.Router();
 const prisma = new PrismaClient();
+
+const adminOnly = requireRole('super_admin', 'admin');
 
 // GET /api/locations
 router.get('/', async (req, res) => {
@@ -32,7 +35,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/locations
-router.post('/', async (req, res) => {
+router.post('/', adminOnly, async (req, res) => {
   try {
     const { name, brand, region, storeNumber, twilioNumber, timezone } = req.body;
     const location = await prisma.location.create({
@@ -45,7 +48,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/locations/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', adminOnly, async (req, res) => {
   try {
     const { name, brand, region, storeNumber, twilioNumber, active, timezone } = req.body;
     const location = await prisma.location.update({
