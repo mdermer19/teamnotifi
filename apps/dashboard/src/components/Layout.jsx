@@ -92,6 +92,10 @@ export default function Layout({ children }) {
 
         <div className="p-4 border-t border-forest-dark space-y-3">
           <div>
+            <label className="block text-xs text-white/60 mb-1">📱 Text call-outs to</label>
+            <div className="text-sm font-medium text-white">(404) 900-7771</div>
+          </div>
+          <div>
             <label className="block text-xs text-white/60 mb-1">🕐 Display time zone</label>
             <TimezonePicker dark />
           </div>
