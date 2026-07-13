@@ -124,6 +124,20 @@ async function logAbsence(ctx, extras = {}) {
 
   const absence = await prisma.absence.create({ data });
 
+  // Tag every untagged message from this session (since it started) with
+  // this absence, so the conversation view shows only this exchange —
+  // not messages from an earlier or later session on the same phone.
+  if (ctx.sessionStartedAt) {
+    await prisma.smsMessage.updateMany({
+      where: {
+        phone: employee.phone,
+        absenceId: null,
+        createdAt: { gte: new Date(new Date(ctx.sessionStartedAt).getTime() - 2000) },
+      },
+      data: { absenceId: absence.id },
+    });
+  }
+
   if (employee.managerId) {
     notifyManager(absence.id).catch(console.error);
   }
@@ -180,7 +194,7 @@ async function handleInbound(rawPhone, body) {
   if (state === 'NEW' || state === 'IDENTIFY') {
     const employee = await prisma.employee.findUnique({ where: { phone }, include: { location: true } });
     if (employee) {
-      await updateSession(phone, 'CONFIRM_START', { employeeId: employee.id });
+      await updateSession(phone, 'CONFIRM_START', { employeeId: employee.id, sessionStartedAt: session.createdAt.toISOString() });
       return out(M.CONFIRM_START({
         firstName: employee.firstName,
         lastName: employee.lastName,
@@ -190,7 +204,7 @@ async function handleInbound(rawPhone, body) {
     const byCode = await prisma.employee.findUnique({ where: { employeeCode: input }, include: { location: true } });
     if (byCode) {
       await prisma.employee.update({ where: { id: byCode.id }, data: { phone } });
-      await updateSession(phone, 'CONFIRM_START', { employeeId: byCode.id });
+      await updateSession(phone, 'CONFIRM_START', { employeeId: byCode.id, sessionStartedAt: session.createdAt.toISOString() });
       return out(M.CONFIRM_START({
         firstName: byCode.firstName,
         lastName: byCode.lastName,
