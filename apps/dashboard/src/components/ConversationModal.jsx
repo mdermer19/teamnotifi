@@ -36,11 +36,13 @@ export default function ConversationModal({ absence, onClose }) {
       {/* Print-only styles */}
       <style>{`
         @media print {
-          body > * { display: none !important; }
-          .print-modal { display: block !important; position: static !important; background: white !important; padding: 24px !important; }
+          body * { visibility: hidden; }
+          .print-modal, .print-modal * { visibility: visible; }
+          .print-modal { position: absolute !important; inset: 0 !important; background: white !important; padding: 24px !important; display: block !important; max-height: none !important; overflow: visible !important; }
+          .print-modal > div { max-height: none !important; box-shadow: none !important; }
           .print-modal .no-print { display: none !important; }
-          .print-modal .print-bubble-in { background: #e2e8f0 !important; color: #1e293b !important; border-radius: 8px; padding: 8px 12px; margin: 6px 0; max-width: 80%; }
-          .print-modal .print-bubble-out { background: #3a9c3f !important; color: white !important; border-radius: 8px; padding: 8px 12px; margin: 6px 0; max-width: 80%; margin-left: auto; }
+          .print-modal .print-bubble-in { background: #e2e8f0 !important; color: #1e293b !important; border-radius: 8px; padding: 8px 12px; margin: 6px 0; max-width: 80%; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .print-modal .print-bubble-out { background: #3a9c3f !important; color: white !important; border-radius: 8px; padding: 8px 12px; margin: 6px 0; max-width: 80%; margin-left: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .print-modal .print-bubble-meta { font-size: 10px; opacity: 0.6; margin-top: 2px; }
         }
       `}</style>
