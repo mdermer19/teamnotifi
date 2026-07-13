@@ -14,13 +14,28 @@ const ROLE_DESCRIPTIONS = {
   manager: 'Sees only their direct & indirect reports (view only)',
 };
 
-function UserRow({ user, allEmployees, onSaved }) {
+function UserRow({ user, allEmployees, onSaved, onDeleted }) {
   const api = useApi();
   const [role, setRole] = useState(user.role);
   const [employeeId, setEmployeeId] = useState(user.employeeId ? String(user.employeeId) : '');
   const [search, setSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setDeleting(true);
+    try {
+      await api.deleteUser(user.id);
+      onDeleted(user.id);
+    } catch (e) {
+      alert('Failed to delete: ' + e.message);
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
 
   const dirty =
     role !== user.role ||
@@ -67,6 +82,31 @@ function UserRow({ user, allEmployees, onSaved }) {
         </div>
         <div className="flex items-center gap-2">
           {saved && !dirty && <span className="text-xs text-green-600 font-medium">Saved ✓</span>}
+          {confirmDelete ? (
+            <>
+              <span className="text-xs text-red-600 font-medium">Are you sure?</span>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded"
+              >
+                {deleting ? 'Removing…' : 'Yes, remove'}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={handleDelete}
+              className="text-xs text-red-400 hover:text-red-600 px-2 py-1"
+            >
+              Remove
+            </button>
+          )}
           <button
             onClick={save}
             disabled={saving || !dirty}
@@ -183,6 +223,10 @@ export default function Permissions() {
     setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
   }
 
+  function handleDeleted(id) {
+    setUsers(prev => prev.filter(u => u.id !== id));
+  }
+
   if (permLoading || loading) {
     return <div className="flex items-center justify-center h-64 text-slate-400">Loading…</div>;
   }
@@ -252,6 +296,7 @@ export default function Permissions() {
               user={user}
               allEmployees={allEmployees}
               onSaved={handleSaved}
+              onDeleted={handleDeleted}
             />
           ))}
         </div>

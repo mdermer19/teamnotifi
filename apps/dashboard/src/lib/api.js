@@ -62,6 +62,7 @@ export function useApi() {
     getUsers:         ()              => request('/users'),
     updateUser:       (id, data)      => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     linkEmployee:     (id, empId)     => request(`/users/${id}/link-employee`, { method: 'PATCH', body: JSON.stringify({ employeeId: empId }) }),
+    deleteUser:       (id)            => request(`/users/${id}`, { method: 'DELETE' }),
 
     // Settings
     getTemplates:           ()            => request('/settings/templates'),

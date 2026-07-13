@@ -43,6 +43,20 @@ router.put('/:id', requireRole('super_admin'), async (req, res) => {
   }
 });
 
+// DELETE /api/users/:id — remove app user (super_admin only)
+router.delete('/:id', requireRole('super_admin'), async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (req.appUser.id === id) {
+    return res.status(400).json({ error: 'You cannot delete your own account.' });
+  }
+  try {
+    await prisma.appUser.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // PATCH /api/users/:id/link-employee — link or unlink employee record (super_admin only)
 router.patch('/:id/link-employee', requireRole('super_admin'), async (req, res) => {
   const { employeeId } = req.body;
