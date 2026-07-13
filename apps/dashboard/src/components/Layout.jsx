@@ -35,7 +35,6 @@ export default function Layout({ children }) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <img src="/logo.png" alt="" className="h-8 w-8 object-contain" />
         <img src="/text.png" alt="TeamNotifi" className="h-6 object-contain" />
       </header>
 
@@ -56,8 +55,8 @@ export default function Layout({ children }) {
       >
         <div className="px-4 py-3 border-b border-forest-dark flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="" className="h-10 w-10 object-contain flex-shrink-0" />
-            <img src="/text.png" alt="TeamNotifi" className="h-7 object-contain" />
+            <img src="/logo.png" alt="TeamNotifi" className="md:hidden h-10 w-10 object-contain flex-shrink-0" />
+            <img src="/text.png" alt="TeamNotifi" className="hidden md:block h-7 object-contain" />
           </div>
           <button
             onClick={() => setMobileOpen(false)}
