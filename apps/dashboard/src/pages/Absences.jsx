@@ -145,62 +145,97 @@ export default function Absences() {
         ) : displayed.length === 0 ? (
           <div className="p-12 text-center text-slate-400">No absences match your filters</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Employee</th>
-                  <th className="hidden md:table-cell text-left px-4 py-3 font-medium text-slate-600">Location</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Date</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Reason</th>
-                  <th className="hidden md:table-cell text-left px-4 py-3 font-medium text-slate-600">Details</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {displayed.map(absence => {
-                  const details = [];
-                  if (absence.drNotePromised === true) details.push('Dr. note promised');
-                  if (absence.drNotePromised === false) details.push('No dr. note — 2 pts');
-                  if (absence.proofPromised === true) details.push('Proof promised');
-                  if (absence.proofPromised === false) details.push('No proof');
-                  if (absence.notes) details.push(absence.notes);
+          <>
+            {/* Mobile: stacked cards (no sideways scroll) */}
+            <div className="md:hidden divide-y divide-slate-100">
+              {displayed.map(absence => {
+                const details = [];
+                if (absence.drNotePromised === true) details.push('Dr. note promised');
+                if (absence.drNotePromised === false) details.push('No dr. note — 2 pts');
+                if (absence.proofPromised === true) details.push('Proof promised');
+                if (absence.proofPromised === false) details.push('No proof');
+                if (absence.notes) details.push(absence.notes);
 
-                  return (
-                    <tr key={absence.id} onClick={() => setViewing(absence)} className="hover:bg-slate-50 cursor-pointer">
-                      <td className="px-4 py-3">
+                return (
+                  <div key={absence.id} onClick={() => setViewing(absence)} className="p-4 active:bg-slate-50 cursor-pointer">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
                         <div className="font-medium text-slate-900">
                           {absence.employee.firstName} {absence.employee.lastName}
                         </div>
-                        {absence.employee.role && (
-                          <div className="text-xs text-slate-400 capitalize">{absence.employee.role.replace('_', ' ')}</div>
-                        )}
-                        <div className="md:hidden text-xs text-slate-400 mt-0.5">
-                          {absence.location.name}
-                          {details.length > 0 && <> · {details.join(' · ')}</>}
-                        </div>
-                      </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-slate-600">{absence.location.name}</td>
-                      <td className="px-4 py-3 text-slate-600 tabular-nums whitespace-nowrap">
-                        {formatShiftRange(absence.shiftDate, absence.returnDate)}
-                        {absence.returnDate && <span className="ml-1 badge bg-blue-100 text-blue-700">Multi-day</span>}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={REASON_COLORS[absence.reason.code] || 'badge-slate'}>
-                          {absence.reason.label}
-                        </span>
-                        {absence.lateCallout && (
-                          <span className="ml-1 badge bg-orange-100 text-orange-700">Late notice</span>
-                        )}
-                      </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-slate-500 max-w-xs truncate">
-                        {details.join(' · ') || '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <div className="text-xs text-slate-500 mt-0.5">{absence.location.name}</div>
+                      </div>
+                      <span className={`${REASON_COLORS[absence.reason.code] || 'badge-slate'} flex-shrink-0`}>
+                        {absence.reason.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap mt-2 text-sm text-slate-600 tabular-nums">
+                      {formatShiftRange(absence.shiftDate, absence.returnDate)}
+                      {absence.returnDate && <span className="badge bg-blue-100 text-blue-700">Multi-day</span>}
+                      {absence.lateCallout && <span className="badge bg-orange-100 text-orange-700">Late notice</span>}
+                    </div>
+                    {details.length > 0 && (
+                      <p className="text-xs text-slate-400 mt-1">{details.join(' · ')}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop: full table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium text-slate-600">Employee</th>
+                    <th className="text-left px-4 py-3 font-medium text-slate-600">Location</th>
+                    <th className="text-left px-4 py-3 font-medium text-slate-600">Date</th>
+                    <th className="text-left px-4 py-3 font-medium text-slate-600">Reason</th>
+                    <th className="text-left px-4 py-3 font-medium text-slate-600">Details</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {displayed.map(absence => {
+                    const details = [];
+                    if (absence.drNotePromised === true) details.push('Dr. note promised');
+                    if (absence.drNotePromised === false) details.push('No dr. note — 2 pts');
+                    if (absence.proofPromised === true) details.push('Proof promised');
+                    if (absence.proofPromised === false) details.push('No proof');
+                    if (absence.notes) details.push(absence.notes);
+
+                    return (
+                      <tr key={absence.id} onClick={() => setViewing(absence)} className="hover:bg-slate-50 cursor-pointer">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-slate-900">
+                            {absence.employee.firstName} {absence.employee.lastName}
+                          </div>
+                          {absence.employee.role && (
+                            <div className="text-xs text-slate-400 capitalize">{absence.employee.role.replace('_', ' ')}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">{absence.location.name}</td>
+                        <td className="px-4 py-3 text-slate-600 tabular-nums whitespace-nowrap">
+                          {formatShiftRange(absence.shiftDate, absence.returnDate)}
+                          {absence.returnDate && <span className="ml-1 badge bg-blue-100 text-blue-700">Multi-day</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={REASON_COLORS[absence.reason.code] || 'badge-slate'}>
+                            {absence.reason.label}
+                          </span>
+                          {absence.lateCallout && (
+                            <span className="ml-1 badge bg-orange-100 text-orange-700">Late notice</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-slate-500 max-w-xs truncate">
+                          {details.join(' · ') || '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

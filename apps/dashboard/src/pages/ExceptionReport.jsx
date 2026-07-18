@@ -104,7 +104,32 @@ export default function ExceptionReport() {
             </div>
           </div>
 
-          <div className="card overflow-hidden overflow-x-auto">
+          {/* Mobile: stacked cards */}
+          <div className="md:hidden card divide-y divide-slate-100">
+            {data.exceptions.map(emp => (
+              <div key={emp.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 font-medium text-slate-800">
+                    {emp.lastName || '—'}{emp.firstName ? `, ${emp.firstName}` : ''}
+                    <div className="text-xs text-slate-400 font-normal font-mono mt-0.5">
+                      {emp.employeeCode || 'No ID'} · {emp.location || <span className="text-red-500">no location</span>}
+                    </div>
+                  </div>
+                </div>
+                {emp.paylocityPhone && emp.phone && emp.paylocityPhone !== emp.phone && (
+                  <div className="text-xs text-amber-600 mt-1">
+                    SMS: {emp.phone} · Paylocity: {emp.paylocityPhone}
+                  </div>
+                )}
+                <div className="mt-2">
+                  {emp.issues.map(issue => <IssueBadge key={issue} text={issue} />)}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden md:block card overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
