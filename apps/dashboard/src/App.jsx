@@ -13,11 +13,17 @@ import ExceptionReport from './pages/ExceptionReport';
 
 function LoginPage() {
   return (
-    <div className="min-h-screen bg-cream flex items-center justify-center">
-      <div className="text-center">
-        <img src="/logo.png" alt="TeamNotifi" className="w-36 h-36 rounded-2xl mx-auto mb-8 object-cover" />
-        <SignIn routing="hash" />
-      </div>
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
+      <SignIn
+        routing="hash"
+        appearance={{
+          variables: { fontSize: '16px' },
+          elements: {
+            rootBox: 'w-full flex justify-center',
+            card: 'w-full max-w-md shadow-xl',
+          },
+        }}
+      />
     </div>
   );
 }
