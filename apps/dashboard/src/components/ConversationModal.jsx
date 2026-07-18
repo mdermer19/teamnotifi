@@ -64,15 +64,15 @@ export default function ConversationModal({ absence, onClose }) {
               Reason: <span className="font-medium text-slate-700">{absence.reason.label}</span>
             </p>
           </div>
-          <div className="flex items-center gap-2 ml-4 no-print">
+          <div className="flex items-center gap-1 sm:gap-2 ml-4 no-print">
             <button
               onClick={handlePrint}
               title="Print conversation"
-              className="text-slate-400 hover:text-slate-600 p-1"
+              className="text-slate-400 hover:text-slate-600 p-2"
             >
               <PrintIcon />
             </button>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl leading-none p-2">&times;</button>
           </div>
         </div>
 
@@ -124,7 +124,7 @@ export default function ConversationModal({ absence, onClose }) {
           ))}
         </div>
 
-        <div className="p-4 border-t flex-shrink-0 no-print">
+        <div className="p-4 border-t flex-shrink-0 no-print" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
           <button onClick={onClose} className="btn-secondary w-full">Close</button>
         </div>
       </div>

@@ -75,12 +75,12 @@ function UserRow({ user, allEmployees, onSaved, onDeleted }) {
 
   return (
     <div className="card p-5 space-y-4">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <div className="font-semibold text-slate-900">{user.name || 'Unknown'}</div>
-          <div className="text-sm text-slate-500">{user.email || user.clerkUserId}</div>
+          <div className="text-sm text-slate-500 break-all">{user.email || user.clerkUserId}</div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {saved && !dirty && <span className="text-xs text-green-600 font-medium">Saved ✓</span>}
           {confirmDelete ? (
             <>
@@ -88,13 +88,13 @@ function UserRow({ user, allEmployees, onSaved, onDeleted }) {
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="text-xs text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded"
+                className="text-xs text-white bg-red-500 hover:bg-red-600 px-3 py-2 rounded"
               >
                 {deleting ? 'Removing…' : 'Yes, remove'}
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1"
+                className="text-xs text-slate-500 hover:text-slate-700 px-3 py-2"
               >
                 Cancel
               </button>
@@ -102,7 +102,7 @@ function UserRow({ user, allEmployees, onSaved, onDeleted }) {
           ) : (
             <button
               onClick={handleDelete}
-              className="text-xs text-red-400 hover:text-red-600 px-2 py-1"
+              className="text-xs text-red-400 hover:text-red-600 px-3 py-2"
             >
               Remove
             </button>
@@ -119,7 +119,7 @@ function UserRow({ user, allEmployees, onSaved, onDeleted }) {
 
       <div>
         <label className="label">Role</label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {['super_admin', 'admin', 'manager'].map(r => (
             <button
               key={r}
@@ -244,7 +244,7 @@ export default function Permissions() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Permissions</h1>
         <p className="text-sm text-slate-500 mt-0.5">
@@ -258,7 +258,7 @@ export default function Permissions() {
 
       <div className="card p-4 mb-6 bg-slate-50 border-slate-200">
         <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-3">Role Reference</div>
-        <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           <div>
             <div className="font-medium text-slate-700">Super Admin</div>
             <ul className="text-slate-500 text-xs mt-1 space-y-0.5">

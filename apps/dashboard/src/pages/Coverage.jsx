@@ -61,8 +61,8 @@ function CoverageModal({ managers, existing, onClose, onSave }) {
   const availableCoverers = managers.filter(m => m.id !== parseInt(form.absentManagerId));
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b">
           <h2 className="font-semibold text-slate-900">{existing ? 'Edit Coverage' : 'Set Up Coverage'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
@@ -105,7 +105,7 @@ function CoverageModal({ managers, existing, onClose, onSave }) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Start date *</label>
               <input type="date" className="input" required value={form.startDate}
@@ -176,8 +176,8 @@ function SubscriptionModal({ managers, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-sm max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b">
           <h2 className="font-semibold text-slate-900">Add Team Subscription</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
@@ -285,15 +285,15 @@ export default function Coverage() {
   });
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-8">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Coverage & Teams</h1>
           <p className="text-sm text-slate-500 mt-0.5">Control who gets notified for whose team</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <button onClick={() => setModal('subscription')} className="btn-secondary">+ Team Subscription</button>
           <button onClick={() => setModal('coverage')} className="btn-primary">+ Coverage Period</button>
         </div>
@@ -314,9 +314,9 @@ export default function Coverage() {
 
       {/* Coverage periods */}
       <div className="card overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-4 border-b">
           <h2 className="font-semibold text-slate-900">Coverage Periods</h2>
-          <div className="flex gap-1">
+          <div className="flex gap-1 overflow-x-auto">
             {['active', 'upcoming', 'past', 'all'].map(s => (
               <button key={s} onClick={() => setStatusFilter(s)}
                 className={`px-3 py-1 rounded-md text-xs font-medium capitalize transition-colors ${statusFilter === s ? 'bg-forest text-white' : 'text-slate-500 hover:bg-slate-100'}`}>
@@ -335,7 +335,7 @@ export default function Coverage() {
             {coverage.map(c => {
               const status = coverageStatus(c);
               return (
-                <div key={c.id} className="p-4 flex items-start gap-4">
+                <div key={c.id} className="p-4 flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-slate-900">
@@ -380,7 +380,7 @@ export default function Coverage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {subscriptions.map(s => (
-              <div key={s.id} className="flex items-center gap-3 p-4">
+              <div key={s.id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 p-4">
                 <div className="flex-1 text-sm">
                   <span className="font-medium text-slate-900">{s.subscriber.firstName} {s.subscriber.lastName}</span>
                   <span className="text-slate-400 mx-2">receives notifications for</span>

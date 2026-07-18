@@ -73,7 +73,7 @@ export default function Absences() {
     : data.absences;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Absence Log</h1>
@@ -83,7 +83,7 @@ export default function Absences() {
 
       {/* Filters */}
       <div className="card p-4 mb-5">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div>
             <label className="label">Employee</label>
             <input
@@ -150,10 +150,10 @@ export default function Absences() {
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Employee</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Location</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 font-medium text-slate-600">Location</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Date</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Reason</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Details</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 font-medium text-slate-600">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -174,8 +174,12 @@ export default function Absences() {
                         {absence.employee.role && (
                           <div className="text-xs text-slate-400 capitalize">{absence.employee.role.replace('_', ' ')}</div>
                         )}
+                        <div className="md:hidden text-xs text-slate-400 mt-0.5">
+                          {absence.location.name}
+                          {details.length > 0 && <> · {details.join(' · ')}</>}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{absence.location.name}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-slate-600">{absence.location.name}</td>
                       <td className="px-4 py-3 text-slate-600 tabular-nums whitespace-nowrap">
                         {formatShiftRange(absence.shiftDate, absence.returnDate)}
                         {absence.returnDate && <span className="ml-1 badge bg-blue-100 text-blue-700">Multi-day</span>}
@@ -188,7 +192,7 @@ export default function Absences() {
                           <span className="ml-1 badge bg-orange-100 text-orange-700">Late notice</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-500 max-w-xs truncate">
+                      <td className="hidden md:table-cell px-4 py-3 text-slate-500 max-w-xs truncate">
                         {details.join(' · ') || '—'}
                       </td>
                     </tr>

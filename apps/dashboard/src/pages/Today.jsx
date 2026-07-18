@@ -125,7 +125,7 @@ export default function Today() {
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Today's Board</h1>
           <p className="text-sm text-slate-500 mt-0.5">{todayLong}</p>

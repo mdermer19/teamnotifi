@@ -87,7 +87,7 @@ export default function Employees() {
   if (permLoading) return <div className="flex items-center justify-center h-64 text-slate-400">Loading…</div>;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Roster</h1>
@@ -97,7 +97,7 @@ export default function Employees() {
 
       {/* Filters */}
       <div className="card p-4 mb-5">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <label className="label">Search</label>
             <input
@@ -149,9 +149,9 @@ export default function Employees() {
               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Name</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Location</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Reports To</th>
-                  <th className="text-left px-4 py-3 font-medium text-slate-600">Role</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 font-medium text-slate-600">Location</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 font-medium text-slate-600">Reports To</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 font-medium text-slate-600">Role</th>
                   <th className="text-left px-4 py-3 font-medium text-slate-600">Status</th>
                   {canToggleManager && (
                     <th className="text-center px-4 py-3 font-medium text-slate-600">Manager</th>
@@ -168,14 +168,19 @@ export default function Employees() {
                     <td className="px-4 py-3">
                       <div className="font-medium text-slate-900">{emp.firstName} {emp.lastName}</div>
                       {emp.employeeCode && <div className="text-xs text-slate-400">ID: {emp.employeeCode}</div>}
+                      <div className="md:hidden text-xs text-slate-400 mt-0.5">
+                        {emp.location?.name || '—'}
+                        {emp.manager && <> · Reports to {emp.manager.firstName} {emp.manager.lastName}</>}
+                        {emp.role && <> · <span className="capitalize">{emp.role.replace(/_/g, ' ')}</span></>}
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{emp.location?.name || '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="hidden md:table-cell px-4 py-3 text-slate-600">{emp.location?.name || '—'}</td>
+                    <td className="hidden md:table-cell px-4 py-3 text-slate-600">
                       {emp.manager
                         ? `${emp.manager.firstName} ${emp.manager.lastName}`
                         : <span className="text-slate-400">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-slate-600 capitalize">
+                    <td className="hidden md:table-cell px-4 py-3 text-slate-600 capitalize">
                       {emp.role?.replace(/_/g, ' ') || '—'}
                     </td>
                     <td className="px-4 py-3">
@@ -184,18 +189,20 @@ export default function Employees() {
                         : <span className="badge bg-slate-100 text-slate-500">Inactive</span>}
                     </td>
                     {canToggleManager && (
-                      <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
+                      <td className="px-2 py-3 text-center" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => toggleManager(emp)}
                           disabled={togglingId === emp.id}
                           title={emp.isManager ? 'Remove manager flag' : 'Mark as manager'}
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
-                            emp.isManager ? 'bg-forest' : 'bg-slate-200'
-                          } ${togglingId === emp.id ? 'opacity-50' : ''}`}
+                          className="p-3 -m-1"
                         >
-                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                            emp.isManager ? 'translate-x-4' : 'translate-x-0.5'
-                          }`} />
+                          <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            emp.isManager ? 'bg-forest' : 'bg-slate-200'
+                          } ${togglingId === emp.id ? 'opacity-50' : ''}`}>
+                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                              emp.isManager ? 'translate-x-4' : 'translate-x-0.5'
+                            }`} />
+                          </span>
                         </button>
                       </td>
                     )}

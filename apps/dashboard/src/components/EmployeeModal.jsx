@@ -55,7 +55,7 @@ export default function EmployeeModal({ employee, onClose }) {
             </div>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-slate-600 text-2xl leading-none ml-4"
+              className="text-slate-400 hover:text-slate-600 text-2xl leading-none ml-4 p-2"
             >
               &times;
             </button>

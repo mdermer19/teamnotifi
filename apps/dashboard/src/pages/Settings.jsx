@@ -202,7 +202,7 @@ function WorkflowTab({ settings, onSave }) {
     <div className="space-y-4">
       {settings.map(setting => (
         <div key={setting.key} className="card p-5">
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-6">
             <div className="flex-1">
               <div className="font-medium text-slate-800">{setting.label}</div>
               {setting.description && (
@@ -467,7 +467,7 @@ export default function Settings() {
   const templateMap = Object.fromEntries(templates.map(t => [t.key, t]));
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
         <p className="text-sm text-slate-500 mt-0.5">
@@ -479,7 +479,7 @@ export default function Settings() {
         <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4 text-sm">{error}</div>
       )}
 
-      <div className="flex gap-1 mb-6 border-b border-slate-200">
+      <div className="flex gap-1 mb-6 border-b border-slate-200 overflow-x-auto">
         {[
           { key: 'messages', label: 'SMS Messages' },
           { key: 'workflow', label: 'Workflow' },
@@ -488,7 +488,7 @@ export default function Settings() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
               tab === t.key
                 ? 'border-forest text-forest'
                 : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -508,10 +508,10 @@ export default function Settings() {
             </p>
             <div className="grid gap-1.5">
               {ALL_VARS.map(v => (
-                <div key={v.name} className="flex items-baseline gap-3 text-xs">
-                  <span className="font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0">{`{{${v.name}}}`}</span>
+                <div key={v.name} className="flex flex-col sm:flex-row sm:items-baseline gap-0.5 sm:gap-3 text-xs">
+                  <span className="font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded flex-shrink-0 self-start">{`{{${v.name}}}`}</span>
                   <span className="text-slate-500">{v.when}</span>
-                  <span className="text-slate-400 ml-auto flex-shrink-0">e.g. {v.example}</span>
+                  <span className="text-slate-400 sm:ml-auto flex-shrink-0">e.g. {v.example}</span>
                 </div>
               ))}
             </div>

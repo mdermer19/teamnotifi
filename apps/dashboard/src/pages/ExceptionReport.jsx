@@ -60,8 +60,8 @@ export default function ExceptionReport() {
     : null;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-6 flex items-start justify-between">
+    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Exception Report</h1>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -71,7 +71,7 @@ export default function ExceptionReport() {
         </div>
         <button
           onClick={() => { setLoading(true); setData(null); api.getExceptionReport().then(setData).catch(e => setError(e.message)).finally(() => setLoading(false)); }}
-          className="btn-primary text-sm"
+          className="btn-primary text-sm self-start"
         >
           Refresh
         </button>
@@ -89,22 +89,22 @@ export default function ExceptionReport() {
         </div>
       ) : data && (
         <>
-          <div className="flex gap-4 mb-6">
-            <div className="card p-4 flex-1 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="card p-4 text-center">
               <div className="text-2xl font-bold text-slate-900">{data.exceptions.length}</div>
               <div className="text-xs text-slate-500 mt-0.5">Employees with issues</div>
             </div>
-            <div className="card p-4 flex-1 text-center">
+            <div className="card p-4 text-center">
               <div className="text-2xl font-bold text-slate-900">{data.total}</div>
               <div className="text-xs text-slate-500 mt-0.5">Total active employees</div>
             </div>
-            <div className="card p-4 flex-1 text-center">
+            <div className="card p-4 text-center">
               <div className="text-2xl font-bold text-green-600">{data.total - data.exceptions.length}</div>
               <div className="text-xs text-slate-500 mt-0.5">Complete records</div>
             </div>
           </div>
 
-          <div className="card overflow-hidden">
+          <div className="card overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
