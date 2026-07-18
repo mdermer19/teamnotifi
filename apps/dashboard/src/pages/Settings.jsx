@@ -44,6 +44,33 @@ const TEMPLATE_GROUPS = [
   { label: 'General', keys: ['CANCEL', 'REPROMPT', 'DUPLICATE_ABSENCE', 'ABSENCE_CONFIRMED'] },
 ];
 
+// Estimate how a message will be sent over SMS, matching Twilio's segmentation.
+// GSM-7 encoding: 160 chars in one segment, 153/segment when split.
+// Any character outside GSM-7 (emoji, en-dash "–", curly quotes " " ' ') forces
+// Unicode (UCS-2): 70 chars in one segment, 67/segment when split.
+// Note: {{variables}} are counted as their literal placeholder text — the real
+// sent length varies once they're filled in.
+const GSM7 = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+const GSM7_EXT = "^{}\\[~]|€";
+
+function smsInfo(text) {
+  let unicode = false;
+  let len = 0;
+  for (const ch of text) {
+    if (GSM7.includes(ch)) len += 1;
+    else if (GSM7_EXT.includes(ch)) len += 2; // extended chars take 2 in GSM-7
+    else { unicode = true; break; }
+  }
+  if (unicode) {
+    let units = 0;
+    for (const ch of text) units += (ch.codePointAt(0) > 0xffff ? 2 : 1);
+    const segments = units <= 70 ? 1 : Math.ceil(units / 67);
+    return { chars: units, segments: Math.max(1, segments), encoding: 'Unicode' };
+  }
+  const segments = len <= 160 ? 1 : Math.ceil(len / 153);
+  return { chars: len, segments: Math.max(1, segments), encoding: 'GSM-7' };
+}
+
 function TemplateCard({ template, onSave, warning }) {
   const [text, setText] = useState(template.template);
   const [saving, setSaving] = useState(false);
@@ -51,8 +78,7 @@ function TemplateCard({ template, onSave, warning }) {
   const [expanded, setExpanded] = useState(false);
 
   const dirty = text !== template.template;
-  const charCount = text.length;
-  const smsSegments = Math.ceil(charCount / 160) || 1;
+  const sms = smsInfo(text);
   const isModified = template.template !== template.defaultTemplate;
 
   function insertVariable(v) {
@@ -84,13 +110,21 @@ function TemplateCard({ template, onSave, warning }) {
         onClick={() => setExpanded(e => !e)}
       >
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-medium text-slate-800 text-sm">{template.label}</span>
             {isModified && (
               <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full flex-shrink-0">
                 Modified
               </span>
             )}
+            <span
+              title={`${sms.chars} chars · ${sms.encoding} encoding`}
+              className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
+                sms.segments > 1 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
+              {sms.segments === 1 ? '1 SMS segment' : `${sms.segments} SMS segments`}
+            </span>
           </div>
           {!expanded && (
             <div className="text-xs text-slate-400 mt-0.5 truncate">{template.template}</div>
@@ -145,9 +179,10 @@ function TemplateCard({ template, onSave, warning }) {
           />
 
           <div className="flex items-center justify-between mt-2">
-            <span className={`text-xs ${charCount > 160 ? 'text-amber-600 font-medium' : 'text-slate-400'}`}>
-              {charCount} chars · {smsSegments} segment{smsSegments !== 1 ? 's' : ''}
-              {charCount > 160 && ' — may split into multiple texts'}
+            <span className={`text-xs ${sms.segments > 1 ? 'text-red-600 font-medium' : 'text-slate-400'}`}>
+              {sms.chars} chars · {sms.segments} segment{sms.segments !== 1 ? 's' : ''}
+              {sms.encoding === 'Unicode' && ' · Unicode (special characters cap each segment at 70 chars)'}
+              {sms.segments > 1 && ' — sends as multiple texts'}
             </span>
             <div className="flex items-center gap-3">
               {saved && !dirty && <span className="text-xs text-green-600">Saved ✓</span>}
