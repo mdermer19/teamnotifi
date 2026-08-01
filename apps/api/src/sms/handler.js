@@ -223,7 +223,6 @@ async function handleInbound(rawPhone, body) {
     }
     const byCode = await prisma.employee.findUnique({ where: { employeeCode: input }, include: { location: true } });
     if (byCode) {
-      await prisma.employee.update({ where: { id: byCode.id }, data: { phone } });
       const initCtx = await detectInitialIntent(input, byCode.id, session.createdAt.toISOString());
       await updateSession(phone, 'CONFIRM_START', initCtx);
       return out(M.CONFIRM_START({
