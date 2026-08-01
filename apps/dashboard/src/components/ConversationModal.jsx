@@ -51,27 +51,58 @@ export default function ConversationModal({ absence, onClose }) {
       {/* Print-only styles */}
       <style>{`
         @media print {
-          @page { size: letter portrait; margin: 0.6in; }
+          @page { size: letter portrait; margin: 0.75in; }
           body * { visibility: hidden; }
-          .print-modal, .print-modal * { visibility: visible; }
-          .print-modal { position: absolute !important; inset: 0 !important; background: white !important; padding: 0 !important; display: block !important; max-height: none !important; overflow: visible !important; font-size: 11px !important; }
-          .print-modal > div { max-height: none !important; box-shadow: none !important; }
-          .print-modal .no-print { display: none !important; }
-          .print-modal h2 { font-size: 14px !important; margin-bottom: 2px !important; }
-          .print-modal p { font-size: 11px !important; margin: 1px 0 !important; }
-          .print-modal .print-bubble-in { background: #e2e8f0 !important; color: #1e293b !important; border-radius: 6px; padding: 5px 9px; margin: 3px 0; max-width: 75%; font-size: 11px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .print-modal .print-bubble-out { background: #3a9c3f !important; color: white !important; border-radius: 6px; padding: 5px 9px; margin: 3px 0; max-width: 75%; margin-left: auto; font-size: 11px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .print-modal .print-bubble-meta { font-size: 9px !important; opacity: 0.6; margin-top: 1px; }
-          .print-modal .flex-1 { overflow: visible !important; }
-          .print-modal .space-y-3 > * + * { margin-top: 4px !important; }
-          .print-modal .p-4, .print-modal .p-5 { padding: 8px !important; }
-          .print-modal .px-5 { padding-left: 8px !important; padding-right: 8px !important; }
-          .print-modal .py-3 { padding-top: 5px !important; padding-bottom: 5px !important; }
-          .print-modal .border-t, .print-modal .border-b { border-width: 0.5px !important; }
+          .print-only { display: block !important; visibility: visible !important; }
+          .print-only * { visibility: visible !important; }
+          .print-only { position: absolute; top: 0; left: 0; right: 0; font-family: sans-serif; font-size: 11px; color: #1e293b; }
+          .print-only .pb-header { border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px; }
+          .print-only .pb-name { font-size: 14px; font-weight: 700; }
+          .print-only .pb-meta { font-size: 10px; color: #64748b; margin-top: 2px; }
+          .print-only .pb-details { font-size: 10px; color: #475569; margin-top: 6px; }
+          .print-only .pb-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-bottom: 6px; }
+          .print-only .pb-row { display: flex; margin-bottom: 5px; }
+          .print-only .pb-row.out { justify-content: flex-end; }
+          .print-only .pb-bubble { max-width: 70%; border-radius: 6px; padding: 5px 9px; font-size: 11px; line-height: 1.4; }
+          .print-only .pb-bubble.in { background: #e2e8f0; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .print-only .pb-bubble.out { background: #3a9c3f; color: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .print-only .pb-time { font-size: 9px; opacity: 0.55; margin-top: 2px; }
+        }
+        @media screen {
+          .print-only { display: none; }
         }
       `}</style>
 
-    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4 print-modal">
+      {/* Print-only flat layout — no scroll containers, no fixed heights */}
+      <div className="print-only">
+        <div className="pb-header">
+          <div className="pb-name">
+            {absence.employee.firstName} {absence.employee.lastName}
+            <span style={{ fontWeight: 400, fontSize: 11, color: '#94a3b8', marginLeft: 8 }}>EE #{eeId}</span>
+          </div>
+          <div className="pb-meta">Called out for {shiftDate} · Reason: {absence.reason.label}</div>
+          <div className="pb-details">
+            {absence.drNotePromised === true && <div>📋 Dr. note promised within 48 hrs</div>}
+            {absence.drNotePromised === false && <div>⚠️ No doctor's note — 2 points</div>}
+            {absence.proofPromised === true && <div>📋 Proof promised within 48 hrs</div>}
+            {absence.proofPromised === false && <div>ℹ️ No proof provided</div>}
+            {absence.notes && <div>💬 {absence.notes}</div>}
+            {absence.lateCallout && <div>⏰ Late notice callout</div>}
+            {messages.length > 0 && <div style={{ marginTop: 2 }}>{enrolledByCode ? '🔑 Identified by employee ID code' : '📱 Matched by phone number on file'}</div>}
+          </div>
+        </div>
+        <div className="pb-label">SMS Conversation</div>
+        {messages.map(msg => (
+          <div key={msg.id} className={`pb-row${msg.direction === 'outbound' ? ' out' : ''}`}>
+            <div className={`pb-bubble ${msg.direction === 'inbound' ? 'in' : 'out'}`}>
+              <div style={{ whiteSpace: 'pre-wrap' }}>{msg.body}</div>
+              <div className="pb-time">{formatTime(msg.createdAt)} · {msg.direction === 'inbound' ? 'Employee' : 'System'}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+    <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
       <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-lg flex flex-col max-h-[90vh]">
 
         {/* Header */}
