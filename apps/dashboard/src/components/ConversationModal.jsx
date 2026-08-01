@@ -51,14 +51,23 @@ export default function ConversationModal({ absence, onClose }) {
       {/* Print-only styles */}
       <style>{`
         @media print {
+          @page { size: letter portrait; margin: 0.6in; }
           body * { visibility: hidden; }
           .print-modal, .print-modal * { visibility: visible; }
-          .print-modal { position: absolute !important; inset: 0 !important; background: white !important; padding: 24px !important; display: block !important; max-height: none !important; overflow: visible !important; }
+          .print-modal { position: absolute !important; inset: 0 !important; background: white !important; padding: 0 !important; display: block !important; max-height: none !important; overflow: visible !important; font-size: 11px !important; }
           .print-modal > div { max-height: none !important; box-shadow: none !important; }
           .print-modal .no-print { display: none !important; }
-          .print-modal .print-bubble-in { background: #e2e8f0 !important; color: #1e293b !important; border-radius: 8px; padding: 8px 12px; margin: 6px 0; max-width: 80%; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .print-modal .print-bubble-out { background: #3a9c3f !important; color: white !important; border-radius: 8px; padding: 8px 12px; margin: 6px 0; max-width: 80%; margin-left: auto; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .print-modal .print-bubble-meta { font-size: 10px; opacity: 0.6; margin-top: 2px; }
+          .print-modal h2 { font-size: 14px !important; margin-bottom: 2px !important; }
+          .print-modal p { font-size: 11px !important; margin: 1px 0 !important; }
+          .print-modal .print-bubble-in { background: #e2e8f0 !important; color: #1e293b !important; border-radius: 6px; padding: 5px 9px; margin: 3px 0; max-width: 75%; font-size: 11px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .print-modal .print-bubble-out { background: #3a9c3f !important; color: white !important; border-radius: 6px; padding: 5px 9px; margin: 3px 0; max-width: 75%; margin-left: auto; font-size: 11px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .print-modal .print-bubble-meta { font-size: 9px !important; opacity: 0.6; margin-top: 1px; }
+          .print-modal .flex-1 { overflow: visible !important; }
+          .print-modal .space-y-3 > * + * { margin-top: 4px !important; }
+          .print-modal .p-4, .print-modal .p-5 { padding: 8px !important; }
+          .print-modal .px-5 { padding-left: 8px !important; padding-right: 8px !important; }
+          .print-modal .py-3 { padding-top: 5px !important; padding-bottom: 5px !important; }
+          .print-modal .border-t, .print-modal .border-b { border-width: 0.5px !important; }
         }
       `}</style>
 
