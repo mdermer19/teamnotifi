@@ -24,6 +24,21 @@ export default function ConversationModal({ absence, onClose }) {
       .finally(() => setLoading(false));
   }, [absence.id]);
 
+  // Determine how the employee was identified for this absence
+  const firstInbound = messages.find(m => m.direction === 'inbound');
+  const enrolledByCode = !!(
+    firstInbound &&
+    absence.employee.employeeCode &&
+    firstInbound.body.trim().toUpperCase() === absence.employee.employeeCode.trim().toUpperCase()
+  );
+  const confirmMsgIdx = messages.findIndex(
+    m => m.direction === 'outbound' && m.body.includes('reply YES to continue')
+  );
+  const affirmatives = new Set(['yes', 'y', 'yep', 'yeah', 'yup']);
+  const confirmedByEE = confirmMsgIdx >= 0 && messages.slice(confirmMsgIdx + 1).some(
+    m => m.direction === 'inbound' && affirmatives.has(m.body.trim().toLowerCase())
+  );
+
   const shiftDate = formatShiftRangeLong(absence.shiftDate, absence.returnDate);
   const eeId = absence.employee.employeeCode || absence.employee.id;
 
@@ -84,6 +99,14 @@ export default function ConversationModal({ absence, onClose }) {
           {absence.proofPromised === false && <div className="text-slate-600">ℹ️ No proof provided</div>}
           {absence.notes && <div className="text-slate-600">💬 Details: {absence.notes}</div>}
           {absence.lateCallout && <div className="text-amber-700">⏰ Late notice callout</div>}
+          {!loading && messages.length > 0 && (
+            <div className="text-slate-500 pt-0.5 border-t border-slate-200 mt-1">
+              {enrolledByCode
+                ? '🔑 Identified by employee ID code'
+                : '📱 Matched by phone number on file'}
+              {confirmedByEE && <span className="ml-2 text-green-700">· ✅ Identity confirmed by employee</span>}
+            </div>
+          )}
         </div>
 
         {/* Conversation thread */}
