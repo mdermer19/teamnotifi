@@ -145,6 +145,25 @@ async function logAbsence(ctx, extras = {}) {
   return { absence };
 }
 
+// Try to detect reason intent from the employee's very first message.
+// Returns a context object with optional preDetectedReason + preDetectedNotes.
+async function detectInitialIntent(input, employeeId, sessionStartedAt) {
+  const base = { employeeId, sessionStartedAt };
+  const words = input.trim().split(/\s+/).filter(Boolean);
+  // Only attempt detection if the message has enough words to be meaningful
+  if (words.length < 2) return base;
+  try {
+    const ai = await parseIntent('SELECT_REASON', input);
+    if (ai && ['1','2','3','4'].includes(ai.intent)) {
+      return Object.assign({}, base, {
+        preDetectedReason: ai.intent,
+        preDetectedNotes: input.trim(),
+      });
+    }
+  } catch (_) { /* ignore */ }
+  return base;
+}
+
 async function handleInbound(rawPhone, body) {
   const phone = normalizeInbound(rawPhone);
   const input = (body || '').trim();
@@ -194,7 +213,8 @@ async function handleInbound(rawPhone, body) {
   if (state === 'NEW' || state === 'IDENTIFY') {
     const employee = await prisma.employee.findUnique({ where: { phone }, include: { location: true } });
     if (employee) {
-      await updateSession(phone, 'CONFIRM_START', { employeeId: employee.id, sessionStartedAt: session.createdAt.toISOString() });
+      const initCtx = await detectInitialIntent(input, employee.id, session.createdAt.toISOString());
+      await updateSession(phone, 'CONFIRM_START', initCtx);
       return out(M.CONFIRM_START({
         firstName: employee.firstName,
         lastName: employee.lastName,
@@ -204,7 +224,8 @@ async function handleInbound(rawPhone, body) {
     const byCode = await prisma.employee.findUnique({ where: { employeeCode: input }, include: { location: true } });
     if (byCode) {
       await prisma.employee.update({ where: { id: byCode.id }, data: { phone } });
-      await updateSession(phone, 'CONFIRM_START', { employeeId: byCode.id, sessionStartedAt: session.createdAt.toISOString() });
+      const initCtx = await detectInitialIntent(input, byCode.id, session.createdAt.toISOString());
+      await updateSession(phone, 'CONFIRM_START', initCtx);
       return out(M.CONFIRM_START({
         firstName: byCode.firstName,
         lastName: byCode.lastName,
@@ -236,6 +257,26 @@ async function handleInbound(rawPhone, body) {
     const date = await resolveDate('CONFIRM_DATE');
     if (date) {
       const newCtx = Object.assign({}, ctx, { shiftDate: date.toISOString() });
+
+      // Skip SELECT_REASON if we already know the reason from the initial message
+      if (newCtx.preDetectedReason) {
+        const codeMap = { '1': 'SICK', '2': 'EMERG', '3': 'LATE', '4': 'OTHER' };
+        const reasonCode = codeMap[newCtx.preDetectedReason];
+        const advCtx = Object.assign({}, newCtx, { reasonCode });
+        if (newCtx.preDetectedNotes) advCtx.notes = newCtx.preDetectedNotes;
+
+        if (reasonCode === 'LATE') {
+          await updateSession(phone, 'LATE_ARRIVAL_TIME', advCtx);
+          return out(M.LATE_ARRIVAL_TIME_PROMPT(await buildVars(advCtx)));
+        }
+        const multiDay = getWorkflowSetting('multi_day_prompt_enabled') === 'true';
+        if (multiDay) {
+          await updateSession(phone, 'MULTI_DAY_PROMPT', advCtx);
+          return out(M.MULTI_DAY_PROMPT(await buildVars(advCtx)));
+        }
+        return advanceToReasonState(phone, advCtx, out);
+      }
+
       await updateSession(phone, 'SELECT_REASON', newCtx);
       return out(M.SELECT_REASON(await buildVars(newCtx)));
     }
@@ -252,6 +293,10 @@ async function handleInbound(rawPhone, body) {
 
     const reason = await resolveReason();
     const multiDay = getWorkflowSetting('multi_day_prompt_enabled') === 'true';
+    // If employee gave a descriptive answer instead of just "1"/"2"/"3"/"4",
+    // save it as notes so we don't ask for details again later.
+    const rawTrimmed = input.trim();
+    const freeTextNotes = !['1','2','3','4'].includes(rawTrimmed) && rawTrimmed.length > 1 ? rawTrimmed : null;
 
     if (reason === '1') {
       const newCtx = Object.assign({}, ctx, { reasonCode: 'SICK' });
@@ -262,7 +307,7 @@ async function handleInbound(rawPhone, body) {
       return advanceToReasonState(phone, newCtx, out);
     }
     if (reason === '2') {
-      const newCtx = Object.assign({}, ctx, { reasonCode: 'EMERG' });
+      const newCtx = Object.assign({}, ctx, { reasonCode: 'EMERG', ...(freeTextNotes ? { notes: freeTextNotes } : {}) });
       if (multiDay) {
         await updateSession(phone, 'MULTI_DAY_PROMPT', newCtx);
         return out(M.MULTI_DAY_PROMPT(await buildVars(newCtx)));
@@ -275,7 +320,7 @@ async function handleInbound(rawPhone, body) {
       return out(M.LATE_ARRIVAL_TIME_PROMPT(await buildVars(newCtx)));
     }
     if (reason === '4') {
-      const newCtx = Object.assign({}, ctx, { reasonCode: 'OTHER' });
+      const newCtx = Object.assign({}, ctx, { reasonCode: 'OTHER', ...(freeTextNotes ? { notes: freeTextNotes } : {}) });
       if (multiDay) {
         await updateSession(phone, 'MULTI_DAY_PROMPT', newCtx);
         return out(M.MULTI_DAY_PROMPT(await buildVars(newCtx)));
@@ -407,10 +452,26 @@ async function advanceToReasonState(phone, ctx, out) {
     return out(M.SICK_NOTE_PROMPT(vars));
   }
   if (reasonCode === 'EMERG') {
+    // If employee already described the situation (initial message or free-text reason), skip asking again
+    if (ctx.notes) {
+      if (getWorkflowSetting('proof_prompt_enabled') !== 'true') {
+        const result = await logAbsence(ctx);
+        await closeSession(phone);
+        return out(M.ABSENCE_CONFIRMED(vars), result.absence ? result.absence.id : null);
+      }
+      await updateSession(phone, 'FAMILY_PROOF_PROMPT', ctx);
+      return out(M.FAMILY_PROOF_PROMPT(vars));
+    }
     await updateSession(phone, 'FAMILY_DETAILS', ctx);
     return out(M.FAMILY_DETAILS_PROMPT(vars));
   }
   if (reasonCode === 'OTHER') {
+    // If employee already described the reason, skip the details prompt
+    if (ctx.notes) {
+      const result = await logAbsence(ctx);
+      await closeSession(phone);
+      return out(M.OTHER_DONE(vars), result.absence ? result.absence.id : null);
+    }
     await updateSession(phone, 'OTHER_DETAILS', ctx);
     return out(M.OTHER_DETAILS_PROMPT(vars));
   }

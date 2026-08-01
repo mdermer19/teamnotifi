@@ -16,7 +16,7 @@ const STATE_CONFIGS = {
   CONFIRM_DATE: {
     prompt: 'What date are you reporting for? Reply TODAY, TOMORROW, or a date (e.g. 06/20).',
     intents: ['TODAY', 'TOMORROW', 'DATE', 'UNKNOWN'],
-    description: 'TODAY or TOMORROW are keywords. DATE means they gave a specific date like "Monday", "June 20", "next week" — extract the most likely date as MM/DD. UNKNOWN if truly unclear.',
+    description: 'TODAY or TOMORROW are keywords. DATE means they gave a specific date like "Monday", "June 20", "next week" — extract the most likely date as MM/DD. If they say a range like "the next two days", "a few days", or "a couple days", return TOMORROW (use the start of the range as the date). UNKNOWN if truly unclear.',
   },
   SELECT_REASON: {
     prompt: 'Please select a reason: 1 - I\'m Sick, 2 - Family/Personal Emergency, 3 - Late Arrival, 4 - Other',
