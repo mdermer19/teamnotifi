@@ -51,55 +51,95 @@ export default function ConversationModal({ absence, onClose }) {
       {/* Print-only styles */}
       <style>{`
         @media print {
-          @page { size: letter portrait; margin: 0.75in; }
+          @page { size: letter portrait; margin: 0.6in; }
           body * { visibility: hidden; }
           .print-only { display: block !important; visibility: visible !important; }
           .print-only * { visibility: visible !important; }
-          .print-only { position: absolute; top: 0; left: 0; right: 0; font-family: sans-serif; font-size: 11px; color: #1e293b; }
-          .print-only .pb-header { border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px; }
-          .print-only .pb-name { font-size: 14px; font-weight: 700; }
-          .print-only .pb-meta { font-size: 10px; color: #64748b; margin-top: 2px; }
-          .print-only .pb-details { font-size: 10px; color: #475569; margin-top: 6px; }
-          .print-only .pb-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-bottom: 6px; }
-          .print-only .pb-row { display: flex; margin-bottom: 5px; }
+          .print-only {
+            position: absolute; top: 0; left: 0; right: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 11px; color: #1e293b;
+            display: flex; flex-direction: column; align-items: center;
+          }
+          .print-only .pb-meta-block {
+            width: 100%; max-width: 420px;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 10px 14px; margin-bottom: 14px;
+            background: #f8fafc;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+          }
+          .print-only .pb-name { font-size: 13px; font-weight: 700; color: #0f172a; }
+          .print-only .pb-ee { font-size: 10px; color: #94a3b8; margin-left: 6px; font-weight: 400; }
+          .print-only .pb-info { font-size: 10px; color: #475569; margin-top: 3px; line-height: 1.6; }
+          .print-only .pb-phone { width: 100%; max-width: 420px; }
+          .print-only .pb-phone-header {
+            background: #1e293b; color: white; border-radius: 10px 10px 0 0;
+            padding: 8px 12px; text-align: center; font-size: 10px; font-weight: 600;
+            letter-spacing: 0.03em;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+          }
+          .print-only .pb-phone-body {
+            border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 10px 10px;
+            padding: 10px 10px 6px;
+            background: white;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+          }
+          .print-only .pb-row { display: flex; margin-bottom: 6px; }
           .print-only .pb-row.out { justify-content: flex-end; }
-          .print-only .pb-bubble { max-width: 70%; border-radius: 6px; padding: 5px 9px; font-size: 11px; line-height: 1.4; }
-          .print-only .pb-bubble.in { background: #e2e8f0; color: #1e293b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .print-only .pb-bubble.out { background: #3a9c3f; color: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .print-only .pb-time { font-size: 9px; opacity: 0.55; margin-top: 2px; }
+          .print-only .pb-bubble {
+            max-width: 72%; border-radius: 14px; padding: 6px 10px;
+            font-size: 10.5px; line-height: 1.45;
+          }
+          .print-only .pb-bubble.in {
+            background: #e2e8f0; color: #1e293b; border-bottom-left-radius: 4px;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+          }
+          .print-only .pb-bubble.out {
+            background: #3a9c3f; color: white; border-bottom-right-radius: 4px;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+          }
+          .print-only .pb-time { font-size: 8.5px; opacity: 0.5; margin-top: 2px; }
         }
         @media screen {
           .print-only { display: none; }
         }
       `}</style>
 
-      {/* Print-only flat layout — no scroll containers, no fixed heights */}
+      {/* Print-only layout — phone screenshot style */}
       <div className="print-only">
-        <div className="pb-header">
+        {/* Info card above the phone */}
+        <div className="pb-meta-block">
           <div className="pb-name">
             {absence.employee.firstName} {absence.employee.lastName}
-            <span style={{ fontWeight: 400, fontSize: 11, color: '#94a3b8', marginLeft: 8 }}>EE #{eeId}</span>
+            <span className="pb-ee">EE #{eeId}</span>
           </div>
-          <div className="pb-meta">Called out for {shiftDate} · Reason: {absence.reason.label}</div>
-          <div className="pb-details">
+          <div className="pb-info">
+            <div>Date: {shiftDate}</div>
+            <div>Reason: {absence.reason.label}</div>
             {absence.drNotePromised === true && <div>📋 Dr. note promised within 48 hrs</div>}
             {absence.drNotePromised === false && <div>⚠️ No doctor's note — 2 points</div>}
             {absence.proofPromised === true && <div>📋 Proof promised within 48 hrs</div>}
             {absence.proofPromised === false && <div>ℹ️ No proof provided</div>}
             {absence.notes && <div>💬 {absence.notes}</div>}
             {absence.lateCallout && <div>⏰ Late notice callout</div>}
-            {messages.length > 0 && <div style={{ marginTop: 2 }}>{enrolledByCode ? '🔑 Identified by employee ID code' : '📱 Matched by phone number on file'}</div>}
+            {messages.length > 0 && <div>{enrolledByCode ? '🔑 Identified by employee ID code' : '📱 Matched by phone number on file'}</div>}
           </div>
         </div>
-        <div className="pb-label">SMS Conversation</div>
-        {messages.map(msg => (
-          <div key={msg.id} className={`pb-row${msg.direction === 'outbound' ? ' out' : ''}`}>
-            <div className={`pb-bubble ${msg.direction === 'inbound' ? 'in' : 'out'}`}>
-              <div style={{ whiteSpace: 'pre-wrap' }}>{msg.body}</div>
-              <div className="pb-time">{formatTime(msg.createdAt)} · {msg.direction === 'inbound' ? 'Employee' : 'System'}</div>
-            </div>
+
+        {/* Phone-style chat */}
+        <div className="pb-phone">
+          <div className="pb-phone-header">TeamNotifi · (404) 900-7771</div>
+          <div className="pb-phone-body">
+            {messages.map(msg => (
+              <div key={msg.id} className={`pb-row${msg.direction === 'outbound' ? ' out' : ''}`}>
+                <div className={`pb-bubble ${msg.direction === 'inbound' ? 'in' : 'out'}`}>
+                  <div style={{ whiteSpace: 'pre-wrap' }}>{msg.body}</div>
+                  <div className="pb-time">{formatTime(msg.createdAt)} · {msg.direction === 'inbound' ? 'Employee' : 'System'}</div>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
 
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
