@@ -113,7 +113,6 @@ export default function ConversationModal({ absence, onClose }) {
               {enrolledByCode
                 ? '🔑 Identified by employee ID code'
                 : '📱 Matched by phone number on file'}
-              {confirmedByEE && <span className="ml-2 text-green-700">· ✅ Identity confirmed by employee</span>}
             </div>
           )}
         </div>
