@@ -109,8 +109,10 @@ async function withAppUser(req, res, next) {
         if (emp) employeeId = emp.id;
       }
 
-      appUser = await prisma.appUser.create({
-        data: { clerkUserId, email, name, role, employeeId },
+      appUser = await prisma.appUser.upsert({
+        where: { clerkUserId },
+        create: { clerkUserId, email, name, role, employeeId },
+        update: {},
         include: userInclude,
       });
     }
