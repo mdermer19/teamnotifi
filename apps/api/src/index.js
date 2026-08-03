@@ -96,6 +96,10 @@ app.post('/webhook/sms-status', (req, res) => {
   res.sendStatus(200);
 });
 
+// Public, token-authenticated web report flow. MUST stay above the Clerk gate
+// below — employees completing a report have no login and no Clerk session.
+app.use('/api/report', require('./routes/report'));
+
 // All REST API routes — require valid Clerk session + resolve app user
 app.use('/api', requireAuth(), withAppUser);
 

@@ -164,6 +164,33 @@ async function detectInitialIntent(input, employeeId, sessionStartedAt) {
   return base;
 }
 
+// Web report flow: reply with a single secure link instead of running the
+// conversation over SMS. Only reached when `web_report_flow_enabled` is true;
+// everything below this function is the original flow, left untouched.
+async function handleInboundViaLink(phone, input) {
+  const R = require('../services/reportService');
+  const W = require('../workflow/absenceWorkflow');
+
+  const { employee } = await W.identifyEmployee(phone, input);
+  if (!employee) return { reply: M.UNKNOWN_PHONE() };
+
+  const result = await R.createToken(employee.id);
+
+  // Lost a race with a simultaneous inbound message: the winner has already
+  // texted this same person a link, so stay silent rather than send a second.
+  if (result.raced) return { reply: null };
+
+  if (result.rateLimited) return { reply: M.LINK_RATE_LIMITED() };
+
+  return {
+    reply: M.LINK_SENT({
+      firstName: employee.firstName || '',
+      reportUrl: R.buildReportUrl(result.raw),
+      expiresInMinutes: String(R.ttlMinutes()),
+    }),
+  };
+}
+
 async function handleInbound(rawPhone, body) {
   const phone = normalizeInbound(rawPhone);
   const input = (body || '').trim();
@@ -173,6 +200,12 @@ async function handleInbound(rawPhone, body) {
 
   if (upper === 'STOP' || upper === 'QUIT' || upper === 'UNSUBSCRIBE') {
     return { reply: null };
+  }
+
+  // Feature flag. When false (the default) the original conversational
+  // workflow below runs exactly as before, with no behavioural change.
+  if (getWorkflowSetting('web_report_flow_enabled') === 'true') {
+    return handleInboundViaLink(phone, input);
   }
 
   const session = await getOrCreateSession(phone);
