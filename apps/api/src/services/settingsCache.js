@@ -93,6 +93,7 @@ const DEFAULT_WORKFLOW = {
   web_report_flow_enabled: 'false',
   report_token_ttl_minutes: '120',
   report_token_max_per_hour: '5',
+  report_link_dedupe_seconds: '60',
   confirm_sms_enabled: 'true',
 };
 

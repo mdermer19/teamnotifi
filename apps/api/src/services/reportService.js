@@ -14,6 +14,7 @@ const intSetting = (key, fallback) => {
 
 const ttlMinutes = () => intSetting('report_token_ttl_minutes', 120);
 const maxPerHour = () => intSetting('report_token_max_per_hour', 5);
+const dedupeSeconds = () => intSetting('report_link_dedupe_seconds', 60);
 
 // ---------------------------------------------------------------------------
 // Minting
@@ -31,6 +32,20 @@ const maxPerHour = () => intSetting('report_token_max_per_hour', 5);
 // P2002 and reports `raced`, so the caller stays silent rather than sending a
 // second, conflicting link.
 async function createToken(employeeId) {
+  // Two texts seconds apart are almost always a carrier-duplicated message or
+  // an impatient double-send, not a genuine request for a replacement link.
+  // Issuing a second link there would deliver two texts and silently kill the
+  // first one, so within this window we stay silent and let the existing link
+  // stand. Past the window a repeat text is treated as a real re-request.
+  const recentlyIssued = await prisma.reportToken.findFirst({
+    where: {
+      employeeId,
+      status: 'active',
+      createdAt: { gte: new Date(Date.now() - dedupeSeconds() * 1000) },
+    },
+  });
+  if (recentlyIssued) return { duplicateInbound: true };
+
   const recentCount = await prisma.reportToken.count({
     where: { employeeId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } },
   });

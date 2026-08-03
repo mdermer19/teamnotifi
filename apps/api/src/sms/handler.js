@@ -176,9 +176,10 @@ async function handleInboundViaLink(phone, input) {
 
   const result = await R.createToken(employee.id);
 
-  // Lost a race with a simultaneous inbound message: the winner has already
-  // texted this same person a link, so stay silent rather than send a second.
-  if (result.raced) return { reply: null };
+  // Either a simultaneous inbound message won the race, or a usable link was
+  // just issued moments ago. Either way a link is already on its way to this
+  // person, so stay silent rather than send a second, conflicting one.
+  if (result.raced || result.duplicateInbound) return { reply: null };
 
   if (result.rateLimited) return { reply: M.LINK_RATE_LIMITED() };
 

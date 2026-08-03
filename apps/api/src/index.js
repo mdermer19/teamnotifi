@@ -26,7 +26,16 @@ app.use(cors({
   origin: ['http://localhost:3001', 'http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
 }));
-app.use(clerkMiddleware());
+// Clerk is only needed for the authenticated dashboard API. Scoping it there
+// keeps the Twilio webhook, the public report flow and the static assets
+// working even if Clerk is unreachable or a key is mid-rotation — an employee
+// reporting an absence must never depend on our admin auth provider.
+const clerk = clerkMiddleware();
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/') || req.path.startsWith('/api/report')) return next();
+  return clerk(req, res, next);
+});
+
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
