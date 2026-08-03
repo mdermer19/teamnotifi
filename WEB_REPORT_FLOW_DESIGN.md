@@ -257,3 +257,32 @@ No `/submit` route — §7 removed the review screen, so finalize is triggered b
 - `apps/dashboard/src/App.jsx`
 
 **Untouched:** every other dashboard page/component, `notify.js`, all existing API routes, `appUser.js`, `businessDate.js`, `session.js`, `ai.js`, and the whole existing conversational SMS path.
+
+---
+
+## 13. Implementation notes — changes made while building
+
+Five things surfaced during implementation that were not in the approved design. All are additions or fixes, none change the agreed behaviour.
+
+**a. Clerk middleware scoped to the dashboard API.** `clerkMiddleware()` was applied to *every* request, so the Twilio webhook, the public report page and its static assets all depended on Clerk being reachable. A Clerk outage or a key rotation would have stopped absence reporting entirely. It now runs only for authenticated `/api/*` routes — the only place `getAuth`/`requireAuth` are used. Found because a placeholder key made the public report page return 500.
+
+**b. Repeat-text dedupe window (`report_link_dedupe_seconds`, default 60s).** Because only the token *hash* is stored, a repeat text cannot resend the same URL — it has to mint a new token and expire the old one. Two texts moments apart therefore delivered two texts and silently killed the first link. Carrier-duplicated messages hit this routinely. Within the window a repeat text is now ignored and the existing link stands.
+
+**c. Date formatting bug fixed in the new module.** Absence dates are `@db.Date` stored at UTC midnight, but were formatted with `toLocaleDateString` and no `timeZone`, rendering in the server's local zone. Every date shifted back a day anywhere west of UTC. This is latent in the **legacy** `handler.js` too — it is masked only because the droplet runs UTC, and would surface the moment the server timezone changed. The new module pins `timeZone: 'UTC'`; the legacy copy was deliberately left alone to keep the old path byte-for-byte unchanged. **Worth fixing separately.**
+
+**d. Settings page could not reach the new templates.** `TEMPLATE_GROUPS` is an explicit allow-list, so any key not named there is invisible. The new `WEB_*`, `LINK_*` and `CONFIRM_SMS_*` templates now live under a dedicated **Web Form** tab, keeping them visibly separate from SMS copy. The same gap explains why `LATE_ARRIVAL_TIME_PROMPT` and `LATE_DONE` were the only two templates never customized — they were never listed, so they could not be edited. Both are now included.
+
+**e. New workflow settings seeded by the migration.** The Workflow tab lists rows from `workflow_settings`, so defaults living only in code would never have appeared. The migration inserts all five rows (`ON CONFLICT DO NOTHING`) with `web_report_flow_enabled = false`, so applying the migration alone changes nothing.
+
+### Verification performed
+
+- **31 unit tests** — state transitions, server-side validation, token generation/hashing.
+- **47 end-to-end checks** against a real Postgres (`test/e2e/reportFlow.e2e.js`, needs a throwaway DB; not part of `npm test`) — full flow, Back, refresh-resume, answer-change-after-Back, duplicate dates, expiry, unknown tokens, rate limiting, token secrecy, and both concurrency guarantees under genuinely parallel requests.
+- **Real browser, mobile viewport (375×812)** — walked the complete sick/multi-day/doctor's-note path, exercised Back, reloaded mid-flow to confirm progress persisted, submitted, and confirmed the absence, token linkage, audit trail and SMS rows in the database. Confirmed the dashboard still routes correctly after the `App.jsx` restructure.
+- **Not visually verified:** the new Settings → Web Form tab (it sits behind Clerk login). It compiles and mirrors the existing tab's rendering, but should be eyeballed once deployed.
+
+### Still required before go-live
+
+1. Run `npx prisma migrate deploy` on the server (adds the table, indexes and settings rows; behaviour unchanged while the flag is off).
+2. Set `PUBLIC_BASE_URL` (or rely on the existing `API_BASE_URL`) so links are built as `https://teamnotifi.com/r/…`.
+3. Flip `web_report_flow_enabled` to `true` in Settings → Workflow when ready. No redeploy; flip back to roll back.

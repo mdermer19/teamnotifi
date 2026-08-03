@@ -37,6 +37,23 @@ CREATE UNIQUE INDEX "report_tokens_one_active_per_employee"
     ON "report_tokens"("employee_id")
     WHERE "status" = 'active';
 
+-- The Workflow settings page lists rows from this table, so these must exist
+-- for the new options to be visible and editable. Defaults are deliberately
+-- conservative: the web form is OFF, so applying this migration alone changes
+-- nothing about how the app behaves.
+INSERT INTO "workflow_settings" ("key", "value", "label", "type", "description", "updated_at") VALUES
+  ('web_report_flow_enabled', 'false', 'Use Web Form Instead of Text Conversation', 'boolean',
+   'When enabled, texting in returns a single secure link and the employee answers the questions on a web page instead of over SMS. When disabled, the original text conversation runs unchanged.', NOW()),
+  ('report_token_ttl_minutes', '120', 'Report Link Expires After (minutes)', 'number',
+   'How long a report link stays usable before the employee must text in again for a new one.', NOW()),
+  ('report_token_max_per_hour', '5', 'Max Report Links Per Hour', 'number',
+   'Safety limit on how many links one employee can be sent in an hour, so repeated texts cannot flood their phone.', NOW()),
+  ('report_link_dedupe_seconds', '60', 'Ignore Repeat Texts Within (seconds)', 'number',
+   'If someone texts again this soon after getting a link, no second link is sent. Prevents duplicate carrier messages from replacing a link the employee is already using.', NOW()),
+  ('confirm_sms_enabled', 'true', 'Send Confirmation Text After Submitting', 'boolean',
+   'When enabled, the employee also gets a short confirmation text for their records after finishing the web form. The web confirmation screen is shown either way.', NOW())
+ON CONFLICT ("key") DO NOTHING;
+
 -- Concurrency guarantee #2: never two absences for the same employee+date,
 -- regardless of which flow (legacy SMS or new web) created them. This is the
 -- real backstop behind the existing read-then-write findFirst() check.
