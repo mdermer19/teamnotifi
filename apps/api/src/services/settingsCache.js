@@ -71,6 +71,19 @@ refreshWorkflow();
 setInterval(refreshTemplates, CACHE_TTL).unref();
 setInterval(refreshWorkflow, CACHE_TTL).unref();
 
+// In PM2 cluster mode, each worker has its own in-memory cache. A save in
+// one worker must tell its siblings to refresh too, or they keep serving
+// stale templates until their own periodic timer catches up (up to CACHE_TTL).
+process.on('message', (packet) => {
+  if (packet && packet.topic === 'invalidate-settings-cache') {
+    refreshTemplates();
+    refreshWorkflow();
+  }
+});
+function broadcastInvalidate() {
+  if (process.send) process.send({ type: 'process:msg', topic: 'invalidate-settings-cache' });
+}
+
 function render(template, vars = {}) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : `{{${k}}}`));
 }
@@ -93,6 +106,7 @@ function getDefaultTemplates() {
 
 async function invalidateCaches() {
   await Promise.all([refreshTemplates(), refreshWorkflow()]);
+  broadcastInvalidate();
 }
 
 module.exports = {
