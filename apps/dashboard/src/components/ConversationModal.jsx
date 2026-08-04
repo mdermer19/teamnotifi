@@ -3,6 +3,35 @@ import { useApi } from '../lib/api';
 import { formatShiftRangeLong } from '../lib/dates';
 import { useTimezone } from '../lib/timezone';
 
+// Collapsed by default — most people just want the final answers above.
+// Opens to the literal, timestamped sequence of every answer and every Back,
+// for the rare case someone disputes what was actually submitted.
+function ActivityLog({ entries, formatTime }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="pt-1 no-print">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 px-1 py-1"
+      >
+        <span className={`inline-block transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
+        {open ? 'Hide full activity log' : 'View full activity log'}
+      </button>
+      {open && (
+        <div className="mt-1 rounded-lg bg-slate-50 border border-slate-200 p-3 space-y-1.5">
+          {entries.map((e, i) => (
+            <div key={i} className="text-xs text-slate-500 flex gap-2">
+              <span className="text-slate-400 flex-shrink-0 tabular-nums">{formatTime(e.at)}</span>
+              <span>{e.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PrintIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -205,17 +234,32 @@ export default function ConversationModal({ absence, onClose }) {
           )}
 
           {!loading && isWebFlow && (
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 mb-1 text-center">
-              <div className="text-2xl mb-1">📝</div>
-              <div className="font-medium text-slate-700 text-sm">Submitted via web form</div>
-              {reportToken.submittedAt && (
-                <div className="text-xs text-slate-400 mt-0.5">{formatTime(reportToken.submittedAt)}</div>
-              )}
-              <div className="text-xs text-slate-400 mt-1">
-                The employee answered these questions on the report page instead of by text.
-                Their answers are shown above.
+            <>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-slate-400">
+                  Submitted via web form
+                  {reportToken.submittedAt && <> · {formatTime(reportToken.submittedAt)}</>}
+                </p>
               </div>
-            </div>
+
+              <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+                {reportToken.answers.map((qa, i) => (
+                  <div key={i} className="flex items-start justify-between gap-3 px-3.5 py-2.5 text-sm bg-white">
+                    <span className="text-slate-500">{qa.question}</span>
+                    <span className="font-medium text-slate-800 text-right">{qa.answer}</span>
+                  </div>
+                ))}
+                {reportToken.answers.length === 0 && (
+                  <div className="px-3.5 py-4 text-sm text-slate-400 text-center bg-white">
+                    No answers recorded.
+                  </div>
+                )}
+              </div>
+
+              {reportToken.activityLog.length > 0 && (
+                <ActivityLog entries={reportToken.activityLog} formatTime={formatTime} />
+              )}
+            </>
           )}
 
           {!loading && isWebFlow && messages.length > 0 && (

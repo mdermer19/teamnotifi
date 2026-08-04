@@ -222,6 +222,114 @@ async function buildScreen(record) {
 }
 
 // ---------------------------------------------------------------------------
+// Dashboard views: what an admin sees when they open a web-form absence
+// ---------------------------------------------------------------------------
+
+// Human-readable value for one answer, independent of which question it
+// answers — used by both the summary and the activity log so the two stay
+// consistent with each other.
+async function formatAnswerValue(state, ctx) {
+  switch (state) {
+    case W.STATES.CONFIRM_DATE:
+      return ctx.shiftDate ? W.dateRangeText(ctx.shiftDate, null) : '—';
+    case W.STATES.RETURN_DATE_PROMPT:
+      return ctx.returnDate ? W.dateRangeText(ctx.returnDate, null) : '—';
+    case W.STATES.SELECT_REASON: {
+      if (!ctx.reasonCode) return '—';
+      const reason = await prisma.absenceReason.findUnique({ where: { code: ctx.reasonCode } });
+      return reason ? reason.label : ctx.reasonCode;
+    }
+    case W.STATES.MULTI_DAY_PROMPT:
+      return ctx.multiDay ? 'Yes' : 'No';
+    case W.STATES.SICK_NOTE_PROMPT:
+      return ctx.drNotePromised ? 'Yes' : 'No';
+    case W.STATES.FAMILY_PROOF_PROMPT:
+      return ctx.proofPromised ? 'Yes' : 'No';
+    case W.STATES.FAMILY_DETAILS:
+    case W.STATES.OTHER_DETAILS:
+      return ctx.notes || '—';
+    case W.STATES.LATE_ARRIVAL_TIME:
+      return ctx.lateArrivalTime || '—';
+    default:
+      return '—';
+  }
+}
+
+// Ordered so it always reads top-to-bottom the way the form was actually
+// walked, even though answers land in `context` in whatever order the
+// employee reached them.
+const SUMMARY_ORDER = [
+  W.STATES.CONFIRM_DATE,
+  W.STATES.SELECT_REASON,
+  W.STATES.MULTI_DAY_PROMPT,
+  W.STATES.RETURN_DATE_PROMPT,
+  W.STATES.SICK_NOTE_PROMPT,
+  W.STATES.FAMILY_DETAILS,
+  W.STATES.FAMILY_PROOF_PROMPT,
+  W.STATES.LATE_ARRIVAL_TIME,
+  W.STATES.OTHER_DETAILS,
+];
+
+// The final answer to each question that was actually shown. Skips questions
+// that were never reached (e.g. the multi-day question when a doctor's-note
+// answer alone finished the flow) and the multi-day question itself when the
+// answer was "no" — that "no" is implied by there being no return date.
+async function buildAnswerSummary(reportToken) {
+  const ctx = reportToken.context || {};
+  const summary = [];
+  for (const state of SUMMARY_ORDER) {
+    const copy = SCREEN_COPY[state];
+    if (!copy) continue;
+    if (state === W.STATES.MULTI_DAY_PROMPT && ctx.multiDay === undefined) continue;
+    if (state === W.STATES.RETURN_DATE_PROMPT && !ctx.returnDate) continue;
+    if (state === W.STATES.SICK_NOTE_PROMPT && ctx.drNotePromised === undefined) continue;
+    if (state === W.STATES.FAMILY_DETAILS && ctx.reasonCode !== 'EMERG') continue;
+    if (state === W.STATES.FAMILY_PROOF_PROMPT && ctx.proofPromised === undefined) continue;
+    if (state === W.STATES.LATE_ARRIVAL_TIME && !ctx.lateArrivalTime) continue;
+    if (state === W.STATES.OTHER_DETAILS && ctx.reasonCode !== 'OTHER') continue;
+    if (state === W.STATES.CONFIRM_DATE && !ctx.shiftDate) continue;
+    if (state === W.STATES.SELECT_REASON && !ctx.reasonCode) continue;
+
+    summary.push({
+      question: getMessage(copy.title, {}),
+      answer: await formatAnswerValue(state, ctx),
+    });
+  }
+  return summary;
+}
+
+// The literal sequence of what happened, from the audit trail — every answer,
+// every Back, in order, so a disputed submission can be reconstructed exactly
+// rather than trusting only the final state.
+async function buildActivityLog(reportTokenId) {
+  const entries = await prisma.auditLog.findMany({
+    where: { entityType: 'ReportToken', entityId: reportTokenId },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  const log = [];
+  for (const entry of entries) {
+    const v = entry.newValue || {};
+    if (entry.action === 'report_step') {
+      const copy = SCREEN_COPY[v.state];
+      const question = copy ? getMessage(copy.title, {}) : v.state;
+      const patchState = v.state;
+      const answer = v.patch ? await formatAnswerValue(patchState, v.patch) : '—';
+      log.push({ at: entry.createdAt, text: `Answered "${question}" — ${answer}` });
+    } else if (entry.action === 'report_back') {
+      const copy = SCREEN_COPY[v.to];
+      const question = copy ? getMessage(copy.title, {}) : v.to;
+      log.push({ at: entry.createdAt, text: `Went back to "${question}"` });
+    } else if (entry.action === 'report_submitted') {
+      log.push({ at: entry.createdAt, text: 'Submitted' });
+    } else if (entry.action === 'report_duplicate') {
+      log.push({ at: entry.createdAt, text: 'Submitted — flagged as a duplicate for this date' });
+    }
+  }
+  return log;
+}
+
+// ---------------------------------------------------------------------------
 // Audit
 // ---------------------------------------------------------------------------
 
@@ -333,4 +441,6 @@ module.exports = {
   finalize,
   audit,
   ttlMinutes,
+  buildAnswerSummary,
+  buildActivityLog,
 };

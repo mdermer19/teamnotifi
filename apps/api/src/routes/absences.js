@@ -2,6 +2,7 @@ const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { getViewScope } = require('../middleware/appUser');
 const { localDateStr, dateStr } = require('../lib/businessDate');
+const { buildAnswerSummary, buildActivityLog } = require('../services/reportService');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -158,10 +159,24 @@ router.get('/:id/messages', async (req, res) => {
     // real substance (which reason, which dates, what they answered) lives in
     // the report token's saved context, so surface that as a proper summary
     // instead of a near-empty message thread.
-    const reportToken = await prisma.reportToken.findUnique({
+    const reportTokenRow = await prisma.reportToken.findUnique({
       where: { absenceId: id },
-      select: { context: true, submittedAt: true, createdAt: true },
+      select: { id: true, context: true, submittedAt: true, createdAt: true },
     });
+
+    let reportToken = null;
+    if (reportTokenRow) {
+      const [answers, activityLog] = await Promise.all([
+        buildAnswerSummary(reportTokenRow),
+        buildActivityLog(reportTokenRow.id),
+      ]);
+      reportToken = {
+        submittedAt: reportTokenRow.submittedAt,
+        createdAt: reportTokenRow.createdAt,
+        answers,
+        activityLog,
+      };
+    }
 
     res.json({ messages, reportToken });
   } catch (err) {
