@@ -1,7 +1,10 @@
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
-const CACHE_TTL = 5 * 60 * 1000;
+// Deliberately short: see the note above refreshTemplates() about why the
+// cross-worker invalidation approach was abandoned. This is the upper bound on
+// how long a settings change can take to reach every worker.
+const CACHE_TTL = 15 * 1000;
 
 const DEFAULT_TEMPLATES = {
   UNKNOWN_PHONE: "We don't recognize this number. Reply with your Employee ID to get set up.",
@@ -127,18 +130,17 @@ refreshWorkflow();
 setInterval(refreshTemplates, CACHE_TTL).unref();
 setInterval(refreshWorkflow, CACHE_TTL).unref();
 
-// In PM2 cluster mode, each worker has its own in-memory cache. A save in
-// one worker must tell its siblings to refresh too, or they keep serving
-// stale templates until their own periodic timer catches up (up to CACHE_TTL).
-process.on('message', (packet) => {
-  if (packet && packet.topic === 'invalidate-settings-cache') {
-    refreshTemplates();
-    refreshWorkflow();
-  }
-});
-function broadcastInvalidate() {
-  if (process.send) process.send({ type: 'process:msg', topic: 'invalidate-settings-cache' });
-}
+// In PM2 cluster mode each worker holds its own copy of these caches, and a
+// save only refreshes the worker that handled the request. An earlier attempt
+// to notify siblings with process.send({type:'process:msg'}) did NOT work:
+// that publishes to PM2's monitoring bus, not to the other workers. A setting
+// changed in the dashboard therefore stayed stale on the other worker for up
+// to CACHE_TTL, so roughly half of inbound texts kept using the old value.
+//
+// Rather than reach for PM2-specific IPC, the refresh interval is simply short
+// enough that a stale read is measured in seconds. Two small indexed queries
+// per worker per interval is negligible load, and it behaves correctly under
+// any process manager or a future second server.
 
 function render(template, vars = {}) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => (vars[k] !== undefined ? vars[k] : `{{${k}}}`));
@@ -161,8 +163,9 @@ function getDefaultTemplates() {
 }
 
 async function invalidateCaches() {
+  // Refreshes this worker immediately so the person who just saved sees their
+  // change reflected right away. Other workers catch up within CACHE_TTL.
   await Promise.all([refreshTemplates(), refreshWorkflow()]);
-  broadcastInvalidate();
 }
 
 module.exports = {

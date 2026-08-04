@@ -313,7 +313,7 @@ function WorkflowTab({ settings, onSave }) {
       <div className="card p-4 bg-slate-50 border-slate-200">
         <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Note</div>
         <p className="text-sm text-slate-500">
-          Workflow changes take effect within 5 minutes. Active SMS conversations already in progress will not be affected until their next reply.
+          Workflow changes take effect within about 15 seconds. Active SMS conversations already in progress will not be affected until their next reply.
         </p>
       </div>
     </div>
@@ -523,7 +523,7 @@ export default function Settings() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
         <p className="text-sm text-slate-500 mt-0.5">
-          Edit SMS messages and configure workflow behavior. Changes apply within 5 minutes.
+          Edit SMS messages and configure workflow behavior. Changes apply within about 15 seconds.
         </p>
       </div>
 
