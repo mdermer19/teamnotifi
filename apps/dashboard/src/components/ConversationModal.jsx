@@ -136,6 +136,24 @@ export default function ConversationModal({ absence, onClose }) {
             -webkit-print-color-adjust: exact; print-color-adjust: exact;
           }
           .print-only .pb-time { font-size: 8.5px; opacity: 0.5; margin-top: 2px; }
+          .print-only .pb-qa {
+            width: 100%; max-width: 420px;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            overflow: hidden;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+          }
+          .print-only .pb-qa-row {
+            display: flex; justify-content: space-between; gap: 10px;
+            padding: 6px 12px; font-size: 10px;
+            border-bottom: 1px solid #f1f5f9;
+          }
+          .print-only .pb-qa-row:last-child { border-bottom: none; }
+          .print-only .pb-qa-q { color: #64748b; }
+          .print-only .pb-qa-a { color: #1e293b; font-weight: 600; text-align: right; }
+          .print-only .pb-texts-label {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em;
+            color: #94a3b8; margin: 12px 0 4px; width: 100%; max-width: 420px;
+          }
         }
         @media screen {
           .print-only { display: none; }
@@ -163,22 +181,55 @@ export default function ConversationModal({ absence, onClose }) {
           </div>
         </div>
 
-        {/* Phone-style chat */}
-        <div className="pb-phone">
-          <div className="pb-phone-header">
-            {isWebFlow ? 'Submitted via Web Form' : 'TeamNotifi · (404) 900-7771'}
-          </div>
-          <div className="pb-phone-body">
-            {messages.map(msg => (
-              <div key={msg.id} className={`pb-row${msg.direction === 'outbound' ? ' out' : ''}`}>
-                <div className={`pb-bubble ${msg.direction === 'inbound' ? 'in' : 'out'}`}>
-                  <div style={{ whiteSpace: 'pre-wrap' }}>{msg.body}</div>
-                  <div className="pb-time">{formatTime(msg.createdAt)} · {msg.direction === 'inbound' ? 'Employee' : 'System'}</div>
+        {isWebFlow ? (
+          <>
+            {/* Q&A table — mirrors the on-screen summary */}
+            <div className="pb-phone-header" style={{ borderRadius: '10px 10px 0 0', width: '100%', maxWidth: 420 }}>
+              Submitted via Web Form
+            </div>
+            <div className="pb-qa">
+              {reportToken.answers.map((qa, i) => (
+                <div key={i} className="pb-qa-row">
+                  <span className="pb-qa-q">{qa.question}</span>
+                  <span className="pb-qa-a">{qa.answer}</span>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            {messages.length > 0 && (
+              <>
+                <div className="pb-texts-label">Text messages sent</div>
+                <div className="pb-phone">
+                  <div className="pb-phone-body" style={{ borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                    {messages.map(msg => (
+                      <div key={msg.id} className={`pb-row${msg.direction === 'outbound' ? ' out' : ''}`}>
+                        <div className={`pb-bubble ${msg.direction === 'inbound' ? 'in' : 'out'}`}>
+                          <div style={{ whiteSpace: 'pre-wrap' }}>{msg.body}</div>
+                          <div className="pb-time">{formatTime(msg.createdAt)} · {msg.direction === 'inbound' ? 'Employee' : 'System'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          /* Phone-style chat */
+          <div className="pb-phone">
+            <div className="pb-phone-header">TeamNotifi · (404) 900-7771</div>
+            <div className="pb-phone-body">
+              {messages.map(msg => (
+                <div key={msg.id} className={`pb-row${msg.direction === 'outbound' ? ' out' : ''}`}>
+                  <div className={`pb-bubble ${msg.direction === 'inbound' ? 'in' : 'out'}`}>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{msg.body}</div>
+                    <div className="pb-time">{formatTime(msg.createdAt)} · {msg.direction === 'inbound' ? 'Employee' : 'System'}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
