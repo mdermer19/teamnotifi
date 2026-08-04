@@ -46,14 +46,20 @@ function buildMessage(absence) {
   const { employee, location, reason } = absence;
   const role = employee.role ? ` (${employee.role.replace('_', ' ')})` : '';
 
+  // shiftDate/returnDate are @db.Date values stored at UTC midnight, so they
+  // must be formatted in UTC. Without an explicit timeZone they render in the
+  // server's local zone and every date shifts back a day west of UTC.
+  const fmt = (d) => new Date(d).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', timeZone: 'UTC',
+  });
+
   let dateStr;
   if (absence.returnDate) {
     const last = new Date(absence.returnDate);
-    last.setDate(last.getDate() - 1);
-    const fmt = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    last.setUTCDate(last.getUTCDate() - 1);
     dateStr = `${fmt(absence.shiftDate)} – ${fmt(last)}`;
   } else {
-    dateStr = new Date(absence.shiftDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    dateStr = fmt(absence.shiftDate);
   }
 
   let msg = `TeamNotifi: ${employee.firstName} ${employee.lastName}${role} at ${location.name} reported an absence for ${dateStr}. Reason: ${reason.label}.`;

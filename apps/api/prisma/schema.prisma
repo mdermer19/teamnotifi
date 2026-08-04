@@ -60,6 +60,7 @@ model Employee {
   auditLogs              AuditLog[]
   rosterSyncLogs         RosterSyncLog[]
   appUsers               AppUser[]
+  reportTokens           ReportToken[]
 
   @@map("employees")
 }
@@ -171,7 +172,11 @@ model Absence {
   ackedByEmp    Employee?     @relation("AckedBy", fields: [ackedBy], references: [id])
   notifications Notification[]
   smsMessages   SmsMessage[]
+  reportToken   ReportToken?
 
+  // Enforced in the DB as a unique index (see migration). Guarantees one
+  // absence per employee per date regardless of which flow created it.
+  @@unique([employeeId, shiftDate], map: "absences_employee_shift_date_key")
   @@map("absences")
 }
 
@@ -198,6 +203,34 @@ model SmsMessage {
   absence Absence? @relation(fields: [absenceId], references: [id])
 
   @@map("sms_messages")
+}
+
+// One-time secure link issued over SMS so an employee can complete their
+// absence report on a web form instead of a multi-turn text conversation.
+// The raw token is never stored — only its SHA-256 hash.
+model ReportToken {
+  id           Int       @id @default(autoincrement())
+  tokenHash    String    @unique @map("token_hash")
+  employeeId   Int       @map("employee_id")
+  state        String    @default("CONFIRM_DATE")
+  context      Json      @default("{}")
+  stateHistory String[]  @default([]) @map("state_history")
+  // active | submitting | submitted | expired | duplicate
+  status       String    @default("active")
+  absenceId    Int?      @unique @map("absence_id")
+  expiresAt    DateTime  @map("expires_at")
+  submittedAt  DateTime? @map("submitted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+  absence  Absence? @relation(fields: [absenceId], references: [id])
+
+  // A partial unique index (status = 'active') is added in the migration —
+  // Prisma's DSL can't express it. That is what actually guarantees one
+  // active token per employee under concurrency.
+  @@index([employeeId, status])
+  @@map("report_tokens")
 }
 
 model Notification {

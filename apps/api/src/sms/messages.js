@@ -29,4 +29,6 @@ module.exports = {
   REPROMPT:             (vars = {}) => getMessage('REPROMPT', vars),
   DUPLICATE_ABSENCE:    (vars = {}) => getMessage('DUPLICATE_ABSENCE', vars),
   ABSENCE_CONFIRMED:    (vars = {}) => getMessage('ABSENCE_CONFIRMED', vars),
+  LINK_SENT:            (vars = {}) => getMessage('LINK_SENT', vars),
+  LINK_RATE_LIMITED:    (vars = {}) => getMessage('LINK_RATE_LIMITED', vars),
 };

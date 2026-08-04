@@ -38,10 +38,27 @@ const TEMPLATE_GROUPS = [
   { label: 'Date & Reason', keys: ['CONFIRM_DATE', 'INVALID_DATE', 'SELECT_REASON', 'INVALID_REASON'] },
   { label: 'Sick Leave', keys: ['SICK_NOTE_PROMPT', 'SICK_YES_NOTE', 'SICK_NO_NOTE', 'SICK_REPROMPT'] },
   { label: 'Family / Emergency', keys: ['FAMILY_DETAILS_PROMPT', 'FAMILY_DETAILS_ACK', 'FAMILY_PROOF_PROMPT', 'FAMILY_YES_PROOF', 'FAMILY_NO_PROOF', 'FAMILY_REPROMPT'] },
-  { label: 'Late Arrival', keys: ['LATE_MESSAGE'] },
+  // LATE_ARRIVAL_TIME_PROMPT and LATE_DONE were missing here, which is why
+  // they were the only two templates never customized — they were not
+  // reachable from this page at all.
+  { label: 'Late Arrival', keys: ['LATE_ARRIVAL_TIME_PROMPT', 'LATE_DONE', 'LATE_MESSAGE'] },
   { label: 'Other Reason', keys: ['OTHER_DETAILS_PROMPT', 'OTHER_DONE'] },
   { label: 'Multi-Day Absence', keys: ['MULTI_DAY_PROMPT', 'RETURN_DATE_PROMPT', 'INVALID_RETURN_DATE'] },
   { label: 'General', keys: ['CANCEL', 'REPROMPT', 'DUPLICATE_ABSENCE', 'ABSENCE_CONFIRMED'] },
+];
+
+// Web report flow. Kept in a separate tab because this copy is independent of
+// the SMS wording above — editing one must never change the other.
+const WEB_TEMPLATE_GROUPS = [
+  { label: 'The Text That Sends the Link', keys: ['LINK_SENT', 'LINK_RATE_LIMITED'] },
+  { label: 'Web Form — Date & Reason', keys: ['WEB_DATE_TITLE', 'WEB_DATE_HELP', 'WEB_REASON_TITLE', 'WEB_REASON_HELP'] },
+  { label: 'Web Form — Multi-Day', keys: ['WEB_MULTIDAY_TITLE', 'WEB_MULTIDAY_HELP', 'WEB_RETURN_DATE_TITLE', 'WEB_RETURN_DATE_HELP'] },
+  { label: 'Web Form — Sick', keys: ['WEB_SICK_NOTE_TITLE', 'WEB_SICK_NOTE_HELP'] },
+  { label: 'Web Form — Emergency', keys: ['WEB_EMERG_DETAILS_TITLE', 'WEB_EMERG_DETAILS_HELP', 'WEB_PROOF_TITLE', 'WEB_PROOF_HELP'] },
+  { label: 'Web Form — Late Arrival', keys: ['WEB_LATE_TIME_TITLE', 'WEB_LATE_TIME_HELP'] },
+  { label: 'Web Form — Other', keys: ['WEB_OTHER_DETAILS_TITLE', 'WEB_OTHER_DETAILS_HELP'] },
+  { label: 'Web Form — Result Screens', keys: ['WEB_CONFIRM_TITLE', 'WEB_CONFIRM_BODY', 'WEB_DUPLICATE_TITLE', 'WEB_DUPLICATE_BODY', 'WEB_EXPIRED_TITLE', 'WEB_EXPIRED_BODY', 'WEB_ALREADY_TITLE', 'WEB_ALREADY_BODY', 'WEB_NOT_FOUND_TITLE', 'WEB_NOT_FOUND_BODY'] },
+  { label: 'Confirmation Text (Receipt)', keys: ['CONFIRM_SMS_SICK_NOTE', 'CONFIRM_SMS_SICK_NO_NOTE', 'CONFIRM_SMS_EMERG_PROOF', 'CONFIRM_SMS_EMERG_NO_PROOF', 'CONFIRM_SMS_LATE', 'CONFIRM_SMS_OTHER', 'CONFIRM_SMS_GENERIC'] },
 ];
 
 // Estimate how a message will be sent over SMS, matching Twilio's segmentation.
@@ -517,6 +534,7 @@ export default function Settings() {
       <div className="flex gap-1 mb-6 border-b border-slate-200 overflow-x-auto">
         {[
           { key: 'messages', label: 'SMS Messages' },
+          { key: 'web', label: 'Web Form' },
           { key: 'workflow', label: 'Workflow' },
           { key: 'flow', label: 'Conversation Flow' },
         ].map(t => (
@@ -552,6 +570,38 @@ export default function Settings() {
             </div>
           </div>
           {TEMPLATE_GROUPS.map(group => {
+            const groupTemplates = group.keys.map(k => templateMap[k]).filter(Boolean);
+            if (groupTemplates.length === 0) return null;
+            return (
+              <div key={group.label}>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  {group.label}
+                </div>
+                <div className="space-y-2">
+                  {groupTemplates.map(t => (
+                    <TemplateCard key={t.key} template={t} onSave={handleSaveTemplate} warning={TEMPLATE_WARNINGS[t.key]} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === 'web' && (
+        <div className="space-y-6">
+          <div className="card p-4">
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              About these messages
+            </div>
+            <p className="text-xs text-slate-500">
+              These control the web form employees fill out after tapping the link they
+              receive by text. They are kept separate from the SMS Messages tab on purpose —
+              editing wording here never changes a text message, and vice versa.
+              Only takes effect while the web form is switched on under Workflow.
+            </p>
+          </div>
+          {WEB_TEMPLATE_GROUPS.map(group => {
             const groupTemplates = group.keys.map(k => templateMap[k]).filter(Boolean);
             if (groupTemplates.length === 0) return null;
             return (

@@ -1,18 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApi } from '../lib/api';
 import { usePermissions } from '../hooks/usePermissions';
+import { useTimezone } from '../lib/timezone';
 
+// Coverage start/end are @db.Date values — calendar dates stored at UTC
+// midnight. Formatting or comparing them in the viewer's local zone shifts
+// them back a day anywhere west of UTC, so a window ending today read as
+// "Past" while the server was still routing notifications to the coverer.
 function formatDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  });
 }
 
-function coverageStatus(c) {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const start = new Date(c.startDate); const end = new Date(c.endDate);
+// The stored calendar date as 'YYYY-MM-DD'. ISO date strings compare
+// correctly with <, > and =, so this sidesteps timezone maths entirely.
+function dayStr(d) {
+  return new Date(d).toISOString().slice(0, 10);
+}
+
+function coverageStatus(c, todayStr) {
   if (!c.active) return { label: 'Inactive', cls: 'badge-slate' };
-  if (start > today) return { label: 'Upcoming', cls: 'badge bg-blue-100 text-blue-700' };
-  if (end < today)   return { label: 'Past', cls: 'badge-slate' };
+  if (dayStr(c.startDate) > todayStr) return { label: 'Upcoming', cls: 'badge bg-blue-100 text-blue-700' };
+  if (dayStr(c.endDate) < todayStr)   return { label: 'Past', cls: 'badge-slate' };
   return { label: 'Active', cls: 'badge-green' };
 }
 
@@ -224,6 +235,7 @@ function SubscriptionModal({ managers, onClose, onSave }) {
 export default function Coverage() {
   const api = useApi();
   const { isSuperAdmin, isAdmin, loading: permLoading } = usePermissions() || {};
+  const { localDateStr } = useTimezone();
   const canManage = isSuperAdmin || isAdmin;
   const [coverage, setCoverage] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -279,10 +291,10 @@ export default function Coverage() {
     );
   }
 
-  const activeCoverage = coverage.filter(c => {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    return c.active && new Date(c.startDate) <= today && new Date(c.endDate) >= today;
-  });
+  const todayStr = localDateStr();
+  const activeCoverage = coverage.filter(
+    c => c.active && dayStr(c.startDate) <= todayStr && dayStr(c.endDate) >= todayStr
+  );
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-8">
@@ -333,7 +345,7 @@ export default function Coverage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {coverage.map(c => {
-              const status = coverageStatus(c);
+              const status = coverageStatus(c, todayStr);
               return (
                 <div key={c.id} className="p-4 flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
                   <div className="flex-1">

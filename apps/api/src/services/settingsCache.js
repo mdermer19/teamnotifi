@@ -32,6 +32,54 @@ const DEFAULT_TEMPLATES = {
   REPROMPT: "Didn't catch that. {{original}}",
   DUPLICATE_ABSENCE: 'You already reported out for {{date}}. Reply UPDATE to change it or CANCEL to keep the existing report.',
   ABSENCE_CONFIRMED: 'Your absence has been recorded for {{dateRange}}. Your manager has been notified.',
+
+  // --- Web report flow: the single SMS that starts it -----------------------
+  LINK_SENT: 'Hi {{firstName}}, tap here to report your absence or late arrival: {{reportUrl}}\n\nThis link expires in {{expiresInMinutes}} minutes.',
+  LINK_RATE_LIMITED: 'You have requested several links recently. Please use the most recent link, or try again later.',
+
+  // --- Web report flow: on-screen copy -------------------------------------
+  // Deliberately a SEPARATE set from the SMS templates above: editing SMS
+  // wording must never silently change the web page, and vice versa.
+  WEB_DATE_TITLE: 'What date are you reporting?',
+  WEB_DATE_HELP: '',
+  WEB_REASON_TITLE: "What's the reason?",
+  WEB_REASON_HELP: '',
+  WEB_MULTIDAY_TITLE: 'Will you miss more than one day?',
+  WEB_MULTIDAY_HELP: '',
+  WEB_RETURN_DATE_TITLE: 'When do you plan to return to work?',
+  WEB_RETURN_DATE_HELP: 'Choose your first day back.',
+  WEB_SICK_NOTE_TITLE: "Will you provide a doctor's note?",
+  WEB_SICK_NOTE_HELP: "Providing a note within 48 hours means 0 points. Without one, the absence is 2 points per the Attendance Policy.",
+  WEB_EMERG_DETAILS_TITLE: 'Briefly describe the emergency',
+  WEB_EMERG_DETAILS_HELP: 'Management will determine whether this is an excused absence and whether documentation is required.',
+  WEB_PROOF_TITLE: 'Can you provide proof of this emergency?',
+  WEB_PROOF_HELP: 'This is not required, but it helps your manager determine if the absence is excused.',
+  WEB_LATE_TIME_TITLE: 'About what time will you arrive?',
+  WEB_LATE_TIME_HELP: 'For example: 9:15am',
+  WEB_OTHER_DETAILS_TITLE: 'Briefly describe the reason',
+  WEB_OTHER_DETAILS_HELP: '',
+  WEB_CONFIRM_TITLE: "You're all set, {{firstName}}.",
+  WEB_CONFIRM_BODY: 'Your absence has been recorded for {{dateRange}} and your manager has been notified.',
+  WEB_EXPIRED_TITLE: 'This link has expired',
+  WEB_EXPIRED_BODY: 'For your security, report links expire after a short time. Text us again to get a new link.',
+  WEB_ALREADY_TITLE: 'Already submitted',
+  WEB_ALREADY_BODY: 'This report was already submitted and your manager has been notified.',
+  WEB_DUPLICATE_TITLE: 'Already reported',
+  WEB_DUPLICATE_BODY: 'You already have an absence on file for {{dateRange}}. Contact your manager if you need to change it.',
+  WEB_NOT_FOUND_TITLE: 'Link not found',
+  WEB_NOT_FOUND_BODY: "This link isn't valid. Text us again to get a new one.",
+
+  // --- Web report flow: confirmation SMS (for the employee's records) -------
+  // The web confirmation screen is authoritative; this text is a receipt.
+  // Separate keys again so this can be tuned without touching either the
+  // legacy SMS conversation or the web page copy.
+  CONFIRM_SMS_SICK_NOTE: "Recorded: {{dateRange}}. Provide your doctor's note to your manager within 48 hours for 0 points, otherwise 2 points per the Attendance Policy.",
+  CONFIRM_SMS_SICK_NO_NOTE: 'Recorded: {{dateRange}}. Without a doctor\'s note this is 2 points per the Attendance Policy.',
+  CONFIRM_SMS_EMERG_PROOF: 'Recorded: {{dateRange}}. Please send proof to your manager within 48 hours.',
+  CONFIRM_SMS_EMERG_NO_PROOF: 'Recorded: {{dateRange}}. Your manager will determine whether proof is required.',
+  CONFIRM_SMS_LATE: 'Recorded: late arrival on {{dateRange}}, expected around {{lateArrivalTime}}. Within 7 minutes of your start time is 0 points; more than 7 minutes is 1 point.',
+  CONFIRM_SMS_OTHER: 'Recorded: {{dateRange}}. Management will determine whether this is an excused absence.',
+  CONFIRM_SMS_GENERIC: 'Recorded: {{dateRange}}. Your manager has been notified.',
 };
 
 const DEFAULT_WORKFLOW = {
@@ -39,6 +87,14 @@ const DEFAULT_WORKFLOW = {
   multi_day_prompt_enabled: 'true',
   dr_note_prompt_enabled: 'true',
   proof_prompt_enabled: 'true',
+
+  // Web report flow. Defaults OFF: with this false the existing
+  // conversational SMS workflow runs completely unchanged.
+  web_report_flow_enabled: 'false',
+  report_token_ttl_minutes: '120',
+  report_token_max_per_hour: '5',
+  report_link_dedupe_seconds: '60',
+  confirm_sms_enabled: 'true',
 };
 
 let templateCache = { ...DEFAULT_TEMPLATES };

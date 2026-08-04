@@ -10,6 +10,7 @@ import Coverage from './pages/Coverage';
 import Permissions from './pages/Permissions';
 import Settings from './pages/Settings';
 import ExceptionReport from './pages/ExceptionReport';
+import ReportFlow from './pages/report/ReportFlow';
 
 function LoginPage() {
   return (
@@ -28,9 +29,11 @@ function LoginPage() {
   );
 }
 
-export default function App() {
+// The authenticated dashboard — unchanged, just moved behind a top-level route
+// so the public report flow can render without any Clerk involvement.
+function AuthedApp() {
   return (
-    <BrowserRouter>
+    <>
       <SignedOut>
         <LoginPage />
       </SignedOut>
@@ -52,6 +55,19 @@ export default function App() {
         </PermissionsProvider>
         </TimezoneProvider>
       </SignedIn>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Public: employees completing a report have no login and no Clerk
+            session, so this must sit outside the SignedIn/SignedOut gate. */}
+        <Route path="/r/:token" element={<ReportFlow />} />
+        <Route path="*" element={<AuthedApp />} />
+      </Routes>
     </BrowserRouter>
   );
 }
