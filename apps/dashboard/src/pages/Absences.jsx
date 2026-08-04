@@ -10,9 +10,13 @@ const REASON_COLORS = {
   OTHER: 'badge-slate',
 };
 
+// shiftDate/returnDate are calendar dates stored at UTC midnight, so they must
+// be formatted in UTC or they shift back a day in the viewer's local zone.
 function formatDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+  });
 }
 
 export default function Absences() {

@@ -56,17 +56,29 @@ function parseDate(input, tz) {
   return null;
 }
 
+// Absence dates are @db.Date values stored at UTC midnight, so they must be
+// formatted in UTC. Without an explicit timeZone these render in the server's
+// local zone, shifting every date back a day anywhere west of UTC. This is
+// currently masked only because the droplet runs UTC — it would break the
+// moment the server's timezone changed.
 function formatDateShort(date) {
-  return new Date(date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
+  return new Date(date).toLocaleDateString('en-US', {
+    month: '2-digit', day: '2-digit', timeZone: 'UTC',
+  });
+}
+
+function fmtDateUTC(d) {
+  return new Date(d).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', timeZone: 'UTC',
+  });
 }
 
 function dateRangeText(shiftDate, returnDate) {
-  const start = new Date(shiftDate);
-  const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  if (!returnDate) return fmt(start);
+  if (!returnDate) return fmtDateUTC(shiftDate);
+  // The last absent day is the day before they return.
   const last = new Date(returnDate);
-  last.setDate(last.getDate() - 1);
-  return `${fmt(start)} – ${fmt(last)}`;
+  last.setUTCDate(last.getUTCDate() - 1);
+  return `${fmtDateUTC(shiftDate)} – ${fmtDateUTC(last)}`;
 }
 
 // Builds the full variable context from session state — all vars available in every template.
@@ -84,12 +96,11 @@ async function buildVars(ctx) {
     }
   }
   if (ctx.shiftDate) {
-    const fmt = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    vars.shiftDate = fmt(ctx.shiftDate);
+    vars.shiftDate = fmtDateUTC(ctx.shiftDate);
     vars.dateRange = dateRangeText(ctx.shiftDate, ctx.returnDate);
   }
   if (ctx.returnDate) {
-    vars.returnDate = new Date(ctx.returnDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    vars.returnDate = fmtDateUTC(ctx.returnDate);
   }
   if (ctx.reasonCode) {
     const reason = await prisma.absenceReason.findUnique({ where: { code: ctx.reasonCode } });

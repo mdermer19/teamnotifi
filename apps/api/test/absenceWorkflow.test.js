@@ -119,6 +119,27 @@ test('dateRangeText shows a single day, or a range ending the day before return'
   assert.strictEqual(W.dateRangeText(start, '2026-08-07T00:00:00.000Z'), 'Aug 4 – Aug 6');
 });
 
+// Regression: absence dates are stored at UTC midnight. Formatting them
+// without an explicit timeZone renders them in the machine's local zone,
+// shifting every date back a day anywhere west of UTC. This passed on the
+// UTC server and failed on a US laptop, which is exactly how it stayed hidden.
+test('dates are formatted in UTC regardless of the machine timezone', () => {
+  const original = process.env.TZ;
+  try {
+    for (const zone of ['America/Los_Angeles', 'America/New_York', 'UTC', 'Asia/Tokyo']) {
+      process.env.TZ = zone;
+      assert.strictEqual(
+        W.dateRangeText('2026-08-04T00:00:00.000Z', null),
+        'Aug 4',
+        `wrong date in ${zone}`
+      );
+    }
+  } finally {
+    if (original === undefined) delete process.env.TZ;
+    else process.env.TZ = original;
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Server-side answer validation
 // ---------------------------------------------------------------------------
