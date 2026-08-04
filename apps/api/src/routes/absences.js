@@ -153,7 +153,17 @@ router.get('/:id/messages', async (req, res) => {
       orderBy: { createdAt: 'asc' },
     });
 
-    res.json(messages);
+    // Absences submitted through the web form have no back-and-forth SMS
+    // conversation to show — just a link text and a confirmation text. The
+    // real substance (which reason, which dates, what they answered) lives in
+    // the report token's saved context, so surface that as a proper summary
+    // instead of a near-empty message thread.
+    const reportToken = await prisma.reportToken.findUnique({
+      where: { absenceId: id },
+      select: { context: true, submittedAt: true, createdAt: true },
+    });
+
+    res.json({ messages, reportToken });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch messages' });

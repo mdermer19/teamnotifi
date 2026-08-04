@@ -15,14 +15,22 @@ export default function ConversationModal({ absence, onClose }) {
   const api = useApi();
   const { fmtDateTime: formatTime } = useTimezone();
   const [messages, setMessages] = useState([]);
+  const [reportToken, setReportToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api.getAbsenceMessages(absence.id)
-      .then(setMessages)
-      .catch(() => setMessages([]))
+      .then(({ messages, reportToken }) => { setMessages(messages); setReportToken(reportToken); })
+      .catch(() => { setMessages([]); setReportToken(null); })
       .finally(() => setLoading(false));
   }, [absence.id]);
+
+  // Web-form absences have no back-and-forth SMS conversation — just a link
+  // text and a confirmation text. The real answers already appear in the
+  // Details strip below (they're stored on the absence itself either way),
+  // so the thread section shows a submission summary instead of a
+  // near-empty, misleading "conversation."
+  const isWebFlow = !!reportToken;
 
   // Determine how the employee was identified for this absence
   const firstInbound = messages.find(m => m.direction === 'inbound');
@@ -128,7 +136,9 @@ export default function ConversationModal({ absence, onClose }) {
 
         {/* Phone-style chat */}
         <div className="pb-phone">
-          <div className="pb-phone-header">TeamNotifi · (404) 900-7771</div>
+          <div className="pb-phone-header">
+            {isWebFlow ? 'Submitted via Web Form' : 'TeamNotifi · (404) 900-7771'}
+          </div>
           <div className="pb-phone-body">
             {messages.map(msg => (
               <div key={msg.id} className={`pb-row${msg.direction === 'outbound' ? ' out' : ''}`}>
@@ -190,18 +200,38 @@ export default function ConversationModal({ absence, onClose }) {
 
         {/* Conversation thread */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          <p className="text-xs text-slate-400 text-center mb-4">SMS Conversation</p>
-
           {loading && (
-            <div className="text-center text-slate-400 text-sm py-8">Loading messages…</div>
+            <div className="text-center text-slate-400 text-sm py-8">Loading…</div>
           )}
 
-          {!loading && messages.length === 0 && (
+          {!loading && isWebFlow && (
+            <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 mb-1 text-center">
+              <div className="text-2xl mb-1">📝</div>
+              <div className="font-medium text-slate-700 text-sm">Submitted via web form</div>
+              {reportToken.submittedAt && (
+                <div className="text-xs text-slate-400 mt-0.5">{formatTime(reportToken.submittedAt)}</div>
+              )}
+              <div className="text-xs text-slate-400 mt-1">
+                The employee answered these questions on the report page instead of by text.
+                Their answers are shown above.
+              </div>
+            </div>
+          )}
+
+          {!loading && isWebFlow && messages.length > 0 && (
+            <p className="text-xs text-slate-400 text-center pt-2">Text messages sent</p>
+          )}
+
+          {!loading && !isWebFlow && messages.length === 0 && (
             <div className="text-center text-slate-400 text-sm py-8">
               No messages logged for this absence.
               <br />
               <span className="text-xs">Messages are recorded going forward.</span>
             </div>
+          )}
+
+          {!loading && !isWebFlow && (
+            <p className="text-xs text-slate-400 text-center mb-4">SMS Conversation</p>
           )}
 
           {messages.map(msg => (
