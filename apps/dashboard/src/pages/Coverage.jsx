@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useApi } from '../lib/api';
 import { usePermissions } from '../hooks/usePermissions';
-import { useTimezone } from '../lib/timezone';
 
 // Coverage start/end are @db.Date values — calendar dates stored at UTC
 // midnight. Formatting or comparing them in the viewer's local zone shifts
@@ -14,17 +13,43 @@ function formatDate(d) {
   });
 }
 
-// The stored calendar date as 'YYYY-MM-DD'. ISO date strings compare
-// correctly with <, > and =, so this sidesteps timezone maths entirely.
-function dayStr(d) {
-  return new Date(d).toISOString().slice(0, 10);
+// '19:00' -> '7:00 PM'. Coverage times are wall-clock strings in the business
+// timezone, not instants, so they must not be run through a Date.
+function formatTime(hhmm) {
+  if (!hhmm) return '';
+  const [h, m] = String(hhmm).split(':').map(Number);
+  if (Number.isNaN(h)) return hhmm;
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m ?? 0).padStart(2, '0')} ${suffix}`;
 }
 
-function coverageStatus(c, todayStr) {
+// Short label for the business timezone the coverage times are expressed in,
+// e.g. 'EDT'. Shown next to times so "7:00 PM" is never ambiguous.
+function tzAbbrev(tz) {
+  if (!tz) return '';
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' })
+      .formatToParts(new Date())
+      .find(p => p.type === 'timeZoneName')?.value || '';
+  } catch {
+    return '';
+  }
+}
+
+// The server computes this from the same function that drives notification
+// routing, so the badge can never disagree with who is actually being paged.
+// Crucially it accounts for the start/end TIMES — a window beginning tonight
+// at 7:00 PM is "Upcoming", not "Active", at 4:00 PM today.
+const STATUS_STYLES = {
+  upcoming: { label: 'Upcoming', cls: 'badge bg-blue-100 text-blue-700' },
+  active:   { label: 'Active',   cls: 'badge-green' },
+  past:     { label: 'Past',     cls: 'badge-slate' },
+};
+
+function coverageStatus(c) {
   if (!c.active) return { label: 'Inactive', cls: 'badge-slate' };
-  if (dayStr(c.startDate) > todayStr) return { label: 'Upcoming', cls: 'badge bg-blue-100 text-blue-700' };
-  if (dayStr(c.endDate) < todayStr)   return { label: 'Past', cls: 'badge-slate' };
-  return { label: 'Active', cls: 'badge-green' };
+  return STATUS_STYLES[c.statusNow] || { label: 'Unknown', cls: 'badge-slate' };
 }
 
 // ── Coverage Modal ──────────────────────────────────────────────────────
@@ -235,7 +260,6 @@ function SubscriptionModal({ managers, onClose, onSave }) {
 export default function Coverage() {
   const api = useApi();
   const { isSuperAdmin, isAdmin, loading: permLoading } = usePermissions() || {};
-  const { localDateStr } = useTimezone();
   const canManage = isSuperAdmin || isAdmin;
   const [coverage, setCoverage] = useState([]);
   const [subscriptions, setSubscriptions] = useState([]);
@@ -291,10 +315,10 @@ export default function Coverage() {
     );
   }
 
-  const todayStr = localDateStr();
-  const activeCoverage = coverage.filter(
-    c => c.active && dayStr(c.startDate) <= todayStr && dayStr(c.endDate) >= todayStr
-  );
+  // Server-computed, so this banner reflects exactly who is being paged right
+  // now — including the start/end times, which a date-only check would miss.
+  const activeCoverage = coverage.filter(c => c.active && c.activeNow);
+  const bizTz = tzAbbrev(coverage.find(c => c.timezone)?.timezone);
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-8">
@@ -317,8 +341,9 @@ export default function Coverage() {
           <p className="text-sm font-medium text-amber-800 mb-2">⚠️ Active coverage in effect</p>
           {activeCoverage.map(c => (
             <p key={c.id} className="text-sm text-amber-700">
-              <strong>{c.absentManager.firstName} {c.absentManager.lastName}</strong> is out through {formatDate(c.endDate)} —
-              notifications routing to: {c.coverers.map(cv => `${cv.manager.firstName} ${cv.manager.lastName}`).join(', ')} · ends {formatDate(c.endDate)} at {c.endTime}
+              <strong>{c.absentManager.firstName} {c.absentManager.lastName}</strong> is out —
+              notifications routing to: {c.coverers.map(cv => `${cv.manager.firstName} ${cv.manager.lastName}`).join(', ')} ·
+              ends {formatDate(c.endDate)} at {formatTime(c.endTime)}{bizTz && ` ${bizTz}`}
             </p>
           ))}
         </div>
@@ -345,7 +370,7 @@ export default function Coverage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {coverage.map(c => {
-              const status = coverageStatus(c, todayStr);
+              const status = coverageStatus(c);
               return (
                 <div key={c.id} className="p-4 flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
                   <div className="flex-1">
@@ -358,7 +383,8 @@ export default function Coverage() {
                       {c.reason && <span className="text-xs text-slate-400">· {c.reason}</span>}
                     </div>
                     <p className="text-sm text-slate-500 mt-1">
-                      {formatDate(c.startDate)} {c.startTime} – {formatDate(c.endDate)} {c.endTime}
+                      {formatDate(c.startDate)} at {formatTime(c.startTime)} – {formatDate(c.endDate)} at {formatTime(c.endTime)}
+                      {bizTz && <span className="text-slate-400"> {bizTz}</span>}
                     </p>
                     <div className="flex flex-wrap gap-1 mt-2">
                       <span className="text-xs text-slate-500">Covered by:</span>

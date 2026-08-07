@@ -5,18 +5,19 @@
 
 const DEFAULT_TZ = process.env.BUSINESS_TZ || 'America/New_York';
 
-// 'YYYY-MM-DD' for the current calendar date in the given timezone.
-function localDateStr(tz = DEFAULT_TZ) {
+// 'YYYY-MM-DD' for a calendar date in the given timezone (defaults to now).
+// `now` is injectable so time-dependent behaviour can be tested deterministically.
+function localDateStr(tz = DEFAULT_TZ, now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date());
+  }).format(now);
 }
 
-// 'HH:MM' (24h) for the current time in the given timezone.
-function localTimeStr(tz = DEFAULT_TZ) {
+// 'HH:MM' (24h) for a time in the given timezone (defaults to now).
+function localTimeStr(tz = DEFAULT_TZ, now = new Date()) {
   return new Intl.DateTimeFormat('en-GB', {
     timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(new Date());
+  }).format(now);
 }
 
 // The timezone-local "today" as a Date at UTC midnight of that calendar date.
@@ -45,18 +46,30 @@ function dateStr(d) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-// Is a coverage record active right now, in the given timezone? Compares the
-// current local date/time against the coverage's date range and HH:MM bounds.
-function coverageActiveNow(c, tz = DEFAULT_TZ) {
-  const nowDate = localDateStr(tz);
-  const nowTime = localTimeStr(tz);
+// Where a coverage window sits relative to now: 'upcoming' | 'active' | 'past'.
+//
+// Coverage carries both a date range and HH:MM bounds, so the times matter:
+// a window starting today at 19:00 is NOT active at 16:00 today. This is the
+// single source of truth — the API, the notification routing and the dashboard
+// all derive their answer from here rather than each doing their own date math.
+function coverageStatusNow(c, tz = DEFAULT_TZ, now = new Date()) {
+  const nowDate = localDateStr(tz, now);
+  const nowTime = localTimeStr(tz, now);
   const startDate = dateStr(c.startDate);
   const endDate = dateStr(c.endDate);
+  const startTime = c.startTime || '00:00';
+  const endTime = c.endTime || '23:59';
 
-  if (nowDate < startDate || nowDate > endDate) return false;
-  if (nowDate === startDate && nowTime < (c.startTime || '00:00')) return false;
-  if (nowDate === endDate && nowTime > (c.endTime || '23:59')) return false;
-  return true;
+  if (nowDate < startDate) return 'upcoming';
+  if (nowDate === startDate && nowTime < startTime) return 'upcoming';
+  if (nowDate > endDate) return 'past';
+  if (nowDate === endDate && nowTime > endTime) return 'past';
+  return 'active';
+}
+
+// Is a coverage record active right now, in the given timezone?
+function coverageActiveNow(c, tz = DEFAULT_TZ, now = new Date()) {
+  return coverageStatusNow(c, tz, now) === 'active';
 }
 
 module.exports = {
@@ -68,4 +81,5 @@ module.exports = {
   calendarDate,
   dateStr,
   coverageActiveNow,
+  coverageStatusNow,
 };

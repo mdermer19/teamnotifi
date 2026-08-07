@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const { requireRole } = require('../middleware/appUser');
+const { coverageStatusNow, DEFAULT_TZ } = require('../lib/businessDate');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -16,25 +17,34 @@ const coverageInclude = {
   },
 };
 
+// Attaches the authoritative status so callers never re-derive it themselves.
+// Filtering happens in JS rather than SQL because the start/end TIMES matter
+// and Postgres only holds them as separate HH:MM strings — a pure date query
+// would call a window starting tonight at 19:00 "active" all day today.
+function withStatus(c) {
+  const statusNow = coverageStatusNow(c);
+  return { ...c, statusNow, activeNow: statusNow === 'active', timezone: DEFAULT_TZ };
+}
+
 // GET /api/coverage
 router.get('/', async (req, res) => {
   try {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
     const { status } = req.query; // active | upcoming | past | all
 
-    let where = { active: true };
-    if (status === 'active')   where = { active: true, startDate: { lte: today }, endDate: { gte: today } };
-    if (status === 'upcoming') where = { active: true, startDate: { gt: today } };
-    if (status === 'past')     where = { active: true, endDate: { lt: today } };
-    if (status === 'all')      where = {};
-
-    const coverage = await prisma.tempCoverage.findMany({
-      where,
+    const rows = await prisma.tempCoverage.findMany({
+      where: status === 'all' ? {} : { active: true },
       include: coverageInclude,
       orderBy: { startDate: 'desc' },
     });
+
+    const coverage = rows.map(withStatus).filter(c => {
+      if (!status || status === 'all') return true;
+      return c.statusNow === status;
+    });
+
     res.json(coverage);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to fetch coverage' });
   }
 });
@@ -61,7 +71,7 @@ router.post('/', adminOnly, async (req, res) => {
       },
       include: coverageInclude,
     });
-    res.status(201).json(coverage);
+    res.status(201).json(withStatus(coverage));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create coverage' });
@@ -93,7 +103,7 @@ router.put('/:id', adminOnly, async (req, res) => {
       data,
       include: coverageInclude,
     });
-    res.json(coverage);
+    res.json(withStatus(coverage));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update coverage' });

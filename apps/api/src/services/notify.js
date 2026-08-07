@@ -1,13 +1,16 @@
 const twilio = require('twilio');
 const { PrismaClient } = require('@prisma/client');
-const { coverageActiveNow } = require('../lib/businessDate');
+const { coverageActiveNow, localToday } = require('../lib/businessDate');
 
 const prisma = new PrismaClient();
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 async function resolveRecipients(managerId) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Anchored to the business timezone, not the server clock. These queries are
+  // only a coarse net — coverageActiveNow() below applies the real start/end
+  // time bounds — but a server-local midnight would drop a window ending today
+  // if the droplet's timezone ever moved off UTC.
+  const today = localToday();
 
   async function isOut(empId) {
     const cs = await prisma.tempCoverage.findMany({
