@@ -11,6 +11,8 @@ import Permissions from './pages/Permissions';
 import Settings from './pages/Settings';
 import ExceptionReport from './pages/ExceptionReport';
 import ReportFlow from './pages/report/ReportFlow';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 
 function LoginPage() {
   return (
@@ -63,9 +65,10 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public: employees completing a report have no login and no Clerk
-            session, so this must sit outside the SignedIn/SignedOut gate. */}
+        {/* Public routes — no Clerk session required */}
         <Route path="/r/:token" element={<ReportFlow />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
         <Route path="*" element={<AuthedApp />} />
       </Routes>
     </BrowserRouter>
