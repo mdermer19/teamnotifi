@@ -15,7 +15,7 @@ export default function SmsAlerts() {
 
   const load = useCallback(async () => {
     try {
-      const data = await api.get('/api/sms-alerts');
+      const data = await api.getSmsAlerts();
       setAlerts(data);
     } catch (e) {
       setError(e.message);
@@ -28,7 +28,7 @@ export default function SmsAlerts() {
 
   async function acknowledge(id) {
     try {
-      await api.post(`/api/sms-alerts/${id}/acknowledge`, {});
+      await api.acknowledgeSmsAlert(id);
       setAlerts(prev => prev.filter(a => a.id !== id));
     } catch (e) {
       setError(e.message);
