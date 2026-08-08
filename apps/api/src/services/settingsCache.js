@@ -37,7 +37,7 @@ const DEFAULT_TEMPLATES = {
   ABSENCE_CONFIRMED: 'Your absence has been recorded for {{dateRange}}. Your manager has been notified.',
 
   // --- Web report flow: the single SMS that starts it -----------------------
-  LINK_SENT: 'Hi {{firstName}}, tap here to report your absence or late arrival: {{reportUrl}}\n\nThis link expires in {{expiresInMinutes}} minutes.',
+  LINK_SENT: 'TeamNotifi: Hi {{firstName}}, use this link to report an absence or late arrival: {{reportUrl}}',
   LINK_RATE_LIMITED: 'You have requested several links recently. Please use the most recent link, or try again later.',
 
   // --- Web report flow: on-screen copy -------------------------------------

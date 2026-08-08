@@ -1,10 +1,10 @@
 const crypto = require('crypto');
 
-// 256 bits of entropy, base64url so it's URL-safe and has no padding.
-// The token encodes nothing — not the employee id, not the phone, nothing
-// derivable. The only way to resolve it is a server-side hash lookup.
+// 72 bits of entropy — enough for a short-lived link (2-hour window,
+// rate-limited to 5/hour per employee). The shorter URL helps avoid carrier
+// spam filters that flag long random token strings.
 function generateToken() {
-  return crypto.randomBytes(32).toString('base64url');
+  return crypto.randomBytes(9).toString('base64url');
 }
 
 // We never store the raw token, only this hash, so a database leak yields
