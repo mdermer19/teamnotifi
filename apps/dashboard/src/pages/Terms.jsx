@@ -67,7 +67,7 @@ export default function Terms() {
           <li>Carriers are not liable for delayed or undelivered messages.</li>
         </ul>
         <p className="mt-3">
-          For support, contact PH Companies LLC at <strong>(404) 900-7771</strong>.
+          For support, contact PH Companies LLC at <strong>404-885-8788</strong>.
         </p>
         <p className="mt-3">
           See our <Link to="/privacy" className="text-forest underline hover:text-forest-light">Privacy Policy</Link> for
@@ -87,7 +87,7 @@ export default function Terms() {
           For questions about these Terms, contact PH Companies LLC:
         </p>
         <p className="mt-2">
-          <strong>Phone:</strong> (404) 900-7771<br />
+          <strong>Phone:</strong> 404-885-8788<br />
           <strong>Address:</strong> 230 Windsor Pkwy NE, Sandy Springs, GA 30342
         </p>
       </Section>

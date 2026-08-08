@@ -78,7 +78,7 @@ export default function Privacy() {
           For privacy-related questions or requests, contact PH Companies LLC:
         </p>
         <p className="mt-2">
-          <strong>Phone:</strong> (404) 900-7771<br />
+          <strong>Phone:</strong> 404-885-8788<br />
           <strong>Address:</strong> 230 Windsor Pkwy NE, Sandy Springs, GA 30342
         </p>
       </Section>
