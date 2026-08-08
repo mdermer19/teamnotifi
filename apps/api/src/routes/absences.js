@@ -136,9 +136,9 @@ router.get('/:id/messages', async (req, res) => {
 
     // Fetch messages tagged to this absence, plus messages from the same phone
     // within a 2-hour window before the absence was reported (the conversation)
-    const windowStart = absence.reportedAt
-      ? new Date(new Date(absence.reportedAt).getTime() - 2 * 60 * 60 * 1000)
-      : new Date(absence.createdAt).getTime() - 2 * 60 * 60 * 1000;
+    const anchor = absence.reportedAt ? new Date(absence.reportedAt) : new Date(absence.createdAt);
+    const windowStart = new Date(anchor.getTime() - 2 * 60 * 60 * 1000);
+    const windowEnd   = new Date(anchor.getTime() + 1 * 60 * 60 * 1000);
 
     const messages = await prisma.smsMessage.findMany({
       where: {
@@ -146,7 +146,7 @@ router.get('/:id/messages', async (req, res) => {
           { absenceId: id },
           {
             phone: employee.phone,
-            createdAt: { gte: windowStart },
+            createdAt: { gte: windowStart, lte: windowEnd },
             absenceId: null,
           },
         ],
