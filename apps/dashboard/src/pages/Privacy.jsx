@@ -9,20 +9,24 @@ export default function Privacy() {
 
       <Section heading="About TeamNotifi">
         <p>
-          TeamNotifi is operated by PH Companies LLC. It is an internal employee
-          attendance and workplace communication service used by current employees
-          to report absences and late arrivals and to receive related automated
-          communications.
+          TeamNotifi is an employee communication and attendance service operated
+          by PH Companies LLC. It is used by current employees to receive and
+          submit employment-related communications, including work schedules,
+          attendance information, absence and late-arrival reporting, call-outs,
+          shift coverage notices, operational updates, and other employment-related
+          notifications.
         </p>
       </Section>
 
       <Section heading="Information We Collect">
         <p>TeamNotifi may collect information necessary to provide the service, including:</p>
         <ul>
-          <li>Employee name and phone number</li>
-          <li>Employment and location information</li>
-          <li>Absence and late-arrival submissions</li>
-          <li>Communications submitted through the service</li>
+          <li>Employee name and mobile phone number</li>
+          <li>Employer, location, and workplace information</li>
+          <li>Schedule information where applicable</li>
+          <li>Attendance information, absence and late-arrival submissions, call-out and shift-coverage information</li>
+          <li>Messages or other information submitted through TeamNotifi</li>
+          <li>SMS consent, opt-in, and opt-out records</li>
           <li>Basic technical and log information necessary to operate and secure the service</li>
         </ul>
       </Section>
@@ -30,11 +34,12 @@ export default function Privacy() {
       <Section heading="How We Use Information">
         <p>Information collected through TeamNotifi is used to:</p>
         <ul>
-          <li>Provide and operate TeamNotifi</li>
-          <li>Process attendance-related submissions</li>
-          <li>Send transactional SMS communications and confirmations</li>
+          <li>Operate TeamNotifi and process employee workplace communications</li>
+          <li>Send transactional and employment-related SMS messages and confirmations</li>
+          <li>Communicate schedule, attendance, call-out, shift coverage, and operational information</li>
+          <li>Maintain records of SMS consent and preferences</li>
           <li>Support, secure, troubleshoot, and improve the service</li>
-          <li>Comply with legal obligations</li>
+          <li>Comply with applicable legal obligations</li>
         </ul>
       </Section>
 
@@ -47,9 +52,9 @@ export default function Privacy() {
           service and deliver SMS communications.
         </p>
         <p className="mt-3">
-          TeamNotifi sends transactional SMS messages related to attendance
-          reporting and workplace communications. These are not marketing
-          messages.
+          TeamNotifi sends transactional and employment-related SMS messages.
+          SMS consent information is not used for third-party marketing.
+          These are not marketing messages.
         </p>
       </Section>
 

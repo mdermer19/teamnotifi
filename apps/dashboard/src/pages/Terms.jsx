@@ -9,32 +9,33 @@ export default function Terms() {
 
       <Section heading="About TeamNotifi">
         <p>
-          TeamNotifi is operated by PH Companies LLC. It is an employee
-          attendance and workplace communication service that allows current
-          employees to report absences and late arrivals and to receive
-          automated attendance-related communications.
+          TeamNotifi is an employee communication and attendance service operated
+          by PH Companies LLC. It is used by current employees to receive and
+          submit employment-related communications, including work schedules,
+          attendance information, absence and late-arrival reporting, call-outs,
+          shift coverage notices, operational updates, and other employment-related
+          notifications.
         </p>
       </Section>
 
       <Section heading="Employer Policies">
         <p>
           Use of TeamNotifi is subject to the policies of your employer,
-          including applicable attendance policies. TeamNotifi facilitates
-          the submission and routing of attendance-related communications.
-          It does not itself determine whether an absence is excused, whether
-          documentation is required, or what employment action may result.
-          Those decisions are made by your employer or management under
-          applicable workplace policies.
+          including applicable attendance and workplace policies. TeamNotifi
+          facilitates the submission and routing of employment-related
+          communications. It does not itself determine whether an absence is
+          excused, whether documentation is required, whether attendance points
+          apply, or what employment action may result. Those determinations are
+          made by your employer or management under applicable workplace policies.
         </p>
       </Section>
 
       <Section heading="Acceptable Use">
         <p>
-          TeamNotifi is intended solely for legitimate attendance reporting
-          and related employment communications. Users may not submit false
-          or misleading information, attempt to circumvent or disrupt the
-          service, or use TeamNotifi for any purpose unrelated to its
-          intended function.
+          TeamNotifi is intended solely for legitimate employment-related
+          communications. Users may not submit false or misleading information,
+          attempt to circumvent or disrupt the service, or use TeamNotifi for
+          any purpose unrelated to its intended function.
         </p>
       </Section>
 
@@ -42,10 +43,9 @@ export default function Terms() {
         <p>
           TeamNotifi is provided as-is. PH Companies LLC does not guarantee
           uninterrupted availability and is not liable for delays, errors,
-          or failures in transmission or delivery. If you are unable to
-          successfully submit a report through TeamNotifi, contact your
-          manager directly to ensure your absence or late arrival is
-          properly recorded.
+          or failures in transmission or delivery. If TeamNotifi is unavailable
+          or an urgent employment matter cannot be successfully submitted,
+          contact your manager or other designated company contact directly.
         </p>
       </Section>
 
@@ -54,17 +54,26 @@ export default function Terms() {
           <strong>Program:</strong> TeamNotifi Employee Communications
         </p>
         <p className="mt-2">
-          TeamNotifi sends transactional SMS messages to current employees
-          regarding attendance reporting, absence and late-arrival submissions,
-          confirmations, and related employment communications. These are not
-          marketing messages.
+          TeamNotifi is an employee communication service operated by PH
+          Companies LLC. TeamNotifi may send current employees
+          employment-related SMS messages including work schedules, attendance
+          information, absence and late-arrival reporting, call-outs, shift
+          coverage, confirmations, operational updates, and other
+          employment-related notifications. These are not marketing messages.
         </p>
         <ul className="mt-3">
-          <li>Message frequency varies based on your submissions and employer activity.</li>
+          <li>Message frequency varies.</li>
           <li>Message and data rates may apply.</li>
           <li>Reply <strong>STOP</strong> to opt out of SMS messages from TeamNotifi.</li>
-          <li>Reply <strong>HELP</strong> for help.</li>
+          <li>Reply <strong>HELP</strong> for assistance.</li>
           <li>Carriers are not liable for delayed or undelivered messages.</li>
+          <li>Consent to receive SMS messages is voluntary and is not a condition of employment.</li>
+          <li>
+            Opting out of SMS does not change your obligation to comply with
+            applicable workplace or attendance policies. If TeamNotifi is
+            unavailable or an urgent matter cannot be submitted, contact your
+            manager or other designated company contact directly.
+          </li>
         </ul>
         <p className="mt-3">
           For support, contact PH Companies LLC at <strong>404-885-8788</strong>.
