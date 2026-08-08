@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { SignIn, SignedIn, SignedOut } from '@clerk/clerk-react';
 import { PermissionsProvider } from './hooks/usePermissions';
 import { TimezoneProvider } from './lib/timezone';
@@ -16,17 +16,23 @@ import Terms from './pages/Terms';
 
 function LoginPage() {
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <SignIn
-        routing="hash"
-        appearance={{
-          variables: { fontSize: '16px' },
-          elements: {
-            rootBox: 'w-full flex justify-center',
-            card: 'w-full max-w-md shadow-xl',
-          },
-        }}
-      />
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-4">
+      <div className="w-full flex justify-center">
+        <SignIn
+          routing="hash"
+          appearance={{
+            variables: { fontSize: '16px' },
+            elements: {
+              rootBox: 'w-full flex justify-center',
+              card: 'w-full max-w-md shadow-xl',
+            },
+          }}
+        />
+      </div>
+      <footer className="mt-8 flex gap-5 text-sm text-slate-400">
+        <Link to="/privacy" className="hover:text-slate-600 underline">Privacy Policy</Link>
+        <Link to="/terms" className="hover:text-slate-600 underline">Terms &amp; Conditions</Link>
+      </footer>
     </div>
   );
 }

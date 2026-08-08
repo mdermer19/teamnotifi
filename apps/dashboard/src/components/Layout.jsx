@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import { usePermissions } from '../hooks/usePermissions';
 import { TimezonePicker } from '../lib/timezone';
@@ -102,6 +102,10 @@ export default function Layout({ children }) {
           <div className="flex items-center gap-2">
             <UserButton afterSignOutUrl="/" />
             <span className="text-sm text-white/70">Account</span>
+          </div>
+          <div className="flex gap-3 text-xs text-white/40">
+            <Link to="/privacy" className="hover:text-white/70 underline">Privacy</Link>
+            <Link to="/terms" className="hover:text-white/70 underline">Terms</Link>
           </div>
         </div>
       </aside>
