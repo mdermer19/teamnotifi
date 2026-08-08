@@ -72,5 +72,10 @@ export function useApi() {
 
     // Reports
     getExceptionReport: () => request('/reports/exceptions'),
+
+    // SMS delivery monitoring
+    getSmsAlerts:      ()    => request('/sms-alerts'),
+    getSmsAlertCount:  ()    => request('/sms-alerts/count'),
+    acknowledgeSmsAlert: (id) => request(`/sms-alerts/${id}/acknowledge`, { method: 'POST' }),
   };
 }

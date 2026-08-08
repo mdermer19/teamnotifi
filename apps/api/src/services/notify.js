@@ -1,9 +1,8 @@
-const twilio = require('twilio');
 const { PrismaClient } = require('@prisma/client');
 const { coverageActiveNow, localToday } = require('../lib/businessDate');
+const { sendSms } = require('./smsSender');
 
 const prisma = new PrismaClient();
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 async function resolveRecipients(managerId) {
   // Anchored to the business timezone, not the server clock. These queries are
@@ -99,20 +98,20 @@ async function notifyManager(absenceId) {
   const message = buildMessage(absence);
 
   for (const recipient of recipients) {
-    try {
-      await twilioClient.messages.create({
-        body: message,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: recipient.phone,
-      });
+    const result = await sendSms(recipient.phone, message, {
+      absenceId,
+      messageType: 'manager_notification',
+      employeeId: recipient.id,
+    });
+    if (result.sent) {
       await prisma.notification.create({
         data: { absenceId, recipientId: recipient.id, channel: 'sms', status: 'sent', sentAt: new Date() },
       });
       console.log(`[notify] Sent to ${recipient.firstName} ${recipient.lastName} (${recipient.phone})`);
-    } catch (err) {
-      console.error(`[notify] Failed for ${recipient.phone}:`, err.message);
+    } else {
+      console.error(`[notify] Failed for ${recipient.phone}: ${result.reason}`);
       await prisma.notification.create({
-        data: { absenceId, recipientId: recipient.id, channel: 'sms', status: 'failed', errorMsg: err.message },
+        data: { absenceId, recipientId: recipient.id, channel: 'sms', status: 'failed', errorMsg: result.reason },
       });
     }
   }

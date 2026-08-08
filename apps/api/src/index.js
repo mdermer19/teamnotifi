@@ -5,9 +5,12 @@ const path = require('path');
 const fs = require('fs');
 const twilio = require('twilio');
 const { twiml: { MessagingResponse } } = require('twilio');
+const { PrismaClient } = require('@prisma/client');
 const { clerkMiddleware, requireAuth } = require('@clerk/express');
 const { handleInbound, logMessage, normalizeInbound } = require('./sms/handler');
 const { withAppUser } = require('./middleware/appUser');
+
+const prisma = new PrismaClient();
 
 // Append-only timing log for SMS latency diagnostics.
 const TIMING_LOG = path.join(__dirname, '../logs/sms-timing.jsonl');
@@ -87,8 +90,94 @@ app.post('/webhook/sms', async (req, res) => {
   }
 });
 
-// Twilio status callback — fires on queued/sending/sent/delivered/undelivered/failed
-// for each outbound reply, letting us measure real carrier-side latency per message.
+// Messaging Service delivery status callback — fires for ALL outbound messages
+// sent through the Messaging Service (both REST API and TwiML replies).
+// Configure this URL in Twilio Console → Messaging → Services → [service] →
+// Integration → Delivery Status Callback.
+app.post('/webhook/twilio/status', async (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    const signature = req.headers['x-twilio-signature'] || '';
+    const url = `${process.env.API_BASE_URL}/webhook/twilio/status`;
+    const isValid = twilio.validateRequest(process.env.TWILIO_AUTH_TOKEN, signature, url, req.body);
+    if (!isValid) {
+      console.warn('[sms-delivery] Invalid Twilio signature — request rejected');
+      return res.status(403).send('Forbidden');
+    }
+  }
+
+  const { MessageSid, MessageStatus, ErrorCode, To } = req.body;
+  if (!MessageSid) return res.sendStatus(400);
+
+  const status = (MessageStatus || '').toLowerCase();
+  const errorCode = ErrorCode || null;
+  const isFailure = status === 'failed' || status === 'undelivered';
+
+  console.log(`[sms-delivery] ${MessageSid} → ${status}${errorCode ? ` (error ${errorCode})` : ''}`);
+
+  try {
+    const TERMINAL = ['delivered', 'failed', 'undelivered'];
+
+    let msg = await prisma.smsMessage.findUnique({ where: { twilioSid: MessageSid } });
+
+    if (!msg) {
+      // Message was sent via TwiML (not through sendSms) so no pre-existing row.
+      // Create a minimal record so the alert system has something to attach to.
+      if (To) {
+        try {
+          msg = await prisma.smsMessage.create({
+            data: {
+              phone: To,
+              direction: 'outbound',
+              body: '',
+              twilioSid: MessageSid,
+              deliveryStatus: status,
+              statusUpdatedAt: new Date(),
+              errorCode,
+            },
+          });
+        } catch (e) {
+          if (e.code === 'P2002') {
+            // Race: another callback already created it
+            msg = await prisma.smsMessage.findUnique({ where: { twilioSid: MessageSid } });
+          } else {
+            throw e;
+          }
+        }
+      }
+      if (!msg) {
+        console.warn(`[sms-delivery] Unknown MessageSid and no To — skipping: ${MessageSid}`);
+        return res.sendStatus(200);
+      }
+    } else {
+      // Update status unless we already have a terminal answer
+      if (!TERMINAL.includes(msg.deliveryStatus)) {
+        await prisma.smsMessage.update({
+          where: { id: msg.id },
+          data: {
+            deliveryStatus: status,
+            statusUpdatedAt: new Date(),
+            errorCode: errorCode ?? msg.errorCode,
+          },
+        });
+      }
+    }
+
+    if (isFailure) {
+      await prisma.smsAlert
+        .create({ data: { smsMessageId: msg.id } })
+        .catch(() => {}); // P2002 = duplicate webhook, alert already created
+      console.warn(`[sms-delivery] ALERT: ${status} for ${MessageSid}${errorCode ? ` error=${errorCode}` : ''}`);
+    }
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('[sms-delivery] callback processing error:', err.message);
+    res.sendStatus(500);
+  }
+});
+
+// Per-message status callback for TwiML replies — used for latency diagnostics.
+// (The Messaging Service callback above handles delivery monitoring for all messages.)
 app.post('/webhook/sms-status', (req, res) => {
   const tCallback = Date.now();
   logTiming({
@@ -119,6 +208,7 @@ app.use('/api/coverage', require('./routes/coverage'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/sms-alerts', require('./routes/smsAlerts'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });

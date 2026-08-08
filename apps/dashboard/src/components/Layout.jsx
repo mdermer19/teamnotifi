@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
 import { usePermissions } from '../hooks/usePermissions';
 import { TimezonePicker } from '../lib/timezone';
+import { useApi } from '../lib/api';
 
 const baseNav = [
   { to: '/', label: "Today's Board", icon: '📋', exact: true },
@@ -13,6 +14,23 @@ const baseNav = [
 export default function Layout({ children }) {
   const { canManagePermissions, isSuperAdmin, isAdmin } = usePermissions() || {};
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [smsAlertCount, setSmsAlertCount] = useState(0);
+  const api = useApi();
+
+  // Poll for unresolved SMS delivery failures every 60 seconds (admins only)
+  useEffect(() => {
+    if (!isSuperAdmin && !isAdmin) return;
+    let cancelled = false;
+    async function fetchCount() {
+      try {
+        const { count } = await api.getSmsAlertCount();
+        if (!cancelled) setSmsAlertCount(count);
+      } catch {}
+    }
+    fetchCount();
+    const timer = setInterval(fetchCount, 60_000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [isSuperAdmin, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nav = [
     ...baseNav,
@@ -20,6 +38,7 @@ export default function Layout({ children }) {
     ...(canManagePermissions ? [{ to: '/permissions', label: 'Permissions', icon: '🔐' }] : []),
     ...(isSuperAdmin ? [{ to: '/settings', label: 'Settings', icon: '⚙️' }] : []),
     ...(isSuperAdmin ? [{ to: '/exception-report', label: 'Exceptions', icon: '⚠️' }] : []),
+    ...(isSuperAdmin || isAdmin ? [{ to: '/sms-alerts', label: 'SMS Alerts', icon: '📵', badge: smsAlertCount }] : []),
   ];
 
   return (
@@ -70,7 +89,7 @@ export default function Layout({ children }) {
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          {nav.map(({ to, label, icon, exact }) => (
+          {nav.map(({ to, label, icon, exact, badge }) => (
             <NavLink
               key={to}
               to={to}
@@ -85,7 +104,12 @@ export default function Layout({ children }) {
               }
             >
               <span className="opacity-100">{icon}</span>
-              {label}
+              <span className="flex-1">{label}</span>
+              {badge > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1">
+                  {badge}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

@@ -421,7 +421,11 @@ async function finalize(recordId) {
           select: { phone: true },
         });
         if (employee?.phone && body) {
-          await sendSms(employee.phone, body, result.absence.id);
+          await sendSms(employee.phone, body, {
+            absenceId: result.absence.id,
+            messageType: 'confirmation',
+            employeeId: result.ctx.employeeId,
+          });
         }
       } catch (e) {
         console.error('[report] confirmation SMS failed:', e.message);

@@ -13,6 +13,7 @@ import ExceptionReport from './pages/ExceptionReport';
 import ReportFlow from './pages/report/ReportFlow';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import SmsAlerts from './pages/SmsAlerts';
 
 function LoginPage() {
   return (
@@ -57,6 +58,7 @@ function AuthedApp() {
               <Route path="/permissions" element={<Permissions />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/exception-report" element={<ExceptionReport />} />
+              <Route path="/sms-alerts" element={<SmsAlerts />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>
