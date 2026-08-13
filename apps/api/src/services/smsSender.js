@@ -23,11 +23,10 @@ async function sendSms(to, body, { absenceId = null, messageType = null, employe
 
   let msg;
   try {
-    msg = await getClient().messages.create({
-      body,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to,
-    });
+    const sendParams = process.env.TWILIO_MESSAGING_SERVICE_SID
+      ? { body, messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID, to }
+      : { body, from: process.env.TWILIO_PHONE_NUMBER, to };
+    msg = await getClient().messages.create(sendParams);
   } catch (err) {
     // Twilio rejected the request immediately (bad number, suspended account,
     // etc.).  Record a failed SmsMessage and raise an admin alert so this
