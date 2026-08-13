@@ -22,13 +22,18 @@ function formatAlert(alert) {
     acknowledgedAt: alert.acknowledgedAt,
     message: {
       id: msg.id,
+      phone: msg.phone,
       messageType: msg.messageType,
       messageTypeLabel: MESSAGE_TYPE_LABELS[msg.messageType] || msg.messageType || 'SMS',
       deliveryStatus: msg.deliveryStatus,
       errorCode: msg.errorCode,
       sentAt: msg.createdAt,
       statusUpdatedAt: msg.statusUpdatedAt,
-      employee: emp ? { id: emp.id, name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() } : null,
+      employee: emp ? {
+        id: emp.id,
+        name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+        location: emp.location ? emp.location.name : null,
+      } : null,
       absenceId: msg.absenceId,
     },
   };
@@ -43,7 +48,14 @@ router.get('/', adminOnly, async (req, res) => {
       include: {
         smsMessage: {
           include: {
-            employee: { select: { id: true, firstName: true, lastName: true } },
+            employee: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                location: { select: { name: true } },
+              },
+            },
           },
         },
       },

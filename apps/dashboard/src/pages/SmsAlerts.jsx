@@ -17,6 +17,7 @@ export default function SmsAlerts() {
     try {
       const data = await api.getSmsAlerts();
       setAlerts(data);
+      setError(null);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -84,19 +85,30 @@ function AlertRow({ alert, onAcknowledge }) {
 
         <div className="text-sm text-slate-600">
           {message.employee ? (
-            <span>Recipient: <strong>{message.employee.name}</strong></span>
+            <span>
+              Recipient:{' '}
+              <Link to={`/employees`} className="font-semibold underline hover:text-slate-900">
+                {message.employee.name}
+              </Link>
+              {message.employee.location && (
+                <span className="text-slate-400"> · {message.employee.location}</span>
+              )}
+            </span>
           ) : (
-            <span className="text-slate-400">Recipient unknown</span>
+            <span>
+              <span className="text-slate-400">Recipient unknown</span>
+              {message.phone && (
+                <span className="text-slate-400"> · {message.phone}</span>
+              )}
+            </span>
           )}
         </div>
 
         <div className="flex flex-wrap gap-x-4 text-xs text-slate-400">
           <span>Sent {new Date(message.sentAt).toLocaleString()}</span>
+          <span>{message.phone}</span>
           {message.absenceId && (
-            <Link
-              to={`/absences`}
-              className="underline hover:text-slate-600"
-            >
+            <Link to="/absences" className="underline hover:text-slate-600">
               Absence #{message.absenceId}
             </Link>
           )}
