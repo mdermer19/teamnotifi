@@ -143,7 +143,7 @@ router.get('/:id/messages', async (req, res) => {
     const messages = await prisma.smsMessage.findMany({
       where: {
         OR: [
-          { absenceId: id },
+          { absenceId: id, NOT: { messageType: 'manager_notification' } },
           {
             phone: employee.phone,
             createdAt: { gte: windowStart, lte: windowEnd },
