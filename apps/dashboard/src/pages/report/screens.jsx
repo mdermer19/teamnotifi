@@ -62,8 +62,8 @@ export function DateScreen({ screen, busy, onSubmit }) {
         max={screen.max}
         disabled={busy}
         onChange={(e) => setValue(e.target.value)}
-        className="w-full rounded-xl border-2 border-slate-300 px-4 py-4 text-lg
-                   focus:border-forest focus:outline-none"
+        className="w-full max-w-full rounded-xl border-2 border-slate-300 px-4 py-4 text-base
+                   focus:border-forest focus:outline-none box-border"
       />
 
       <button

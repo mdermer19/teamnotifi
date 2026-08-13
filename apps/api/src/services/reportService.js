@@ -116,10 +116,12 @@ const SCREEN_COPY = {
   SELECT_REASON:       { title: 'WEB_REASON_TITLE',         help: 'WEB_REASON_HELP',         kind: 'reason' },
   MULTI_DAY_PROMPT:    { title: 'WEB_MULTIDAY_TITLE',       help: 'WEB_MULTIDAY_HELP',       kind: 'yesno' },
   RETURN_DATE_PROMPT:  { title: 'WEB_RETURN_DATE_TITLE',    help: 'WEB_RETURN_DATE_HELP',    kind: 'date' },
+  SICK_DETAILS:        { title: 'WEB_SICK_DETAILS_TITLE',   help: 'WEB_SICK_DETAILS_HELP',   kind: 'text' },
   SICK_NOTE_PROMPT:    { title: 'WEB_SICK_NOTE_TITLE',      help: 'WEB_SICK_NOTE_HELP',      kind: 'yesno' },
   FAMILY_DETAILS:      { title: 'WEB_EMERG_DETAILS_TITLE',  help: 'WEB_EMERG_DETAILS_HELP',  kind: 'text' },
   FAMILY_PROOF_PROMPT: { title: 'WEB_PROOF_TITLE',          help: 'WEB_PROOF_HELP',          kind: 'yesno' },
   LATE_ARRIVAL_TIME:   { title: 'WEB_LATE_TIME_TITLE',      help: 'WEB_LATE_TIME_HELP',      kind: 'text' },
+  LATE_DETAILS:        { title: 'WEB_LATE_DETAILS_TITLE',   help: 'WEB_LATE_DETAILS_HELP',   kind: 'text' },
   OTHER_DETAILS:       { title: 'WEB_OTHER_DETAILS_TITLE',  help: 'WEB_OTHER_DETAILS_HELP',  kind: 'text' },
 };
 
@@ -132,9 +134,11 @@ function currentAnswer(state, ctx) {
     case W.STATES.MULTI_DAY_PROMPT:    return ctx.multiDay ?? null;
     case W.STATES.SICK_NOTE_PROMPT:    return ctx.drNotePromised ?? null;
     case W.STATES.FAMILY_PROOF_PROMPT: return ctx.proofPromised ?? null;
+    case W.STATES.SICK_DETAILS:        return ctx.sickDetails ?? null;
     case W.STATES.FAMILY_DETAILS:
     case W.STATES.OTHER_DETAILS:       return ctx.notes ?? null;
     case W.STATES.LATE_ARRIVAL_TIME:   return ctx.lateArrivalTime ?? null;
+    case W.STATES.LATE_DETAILS:        return ctx.lateDetails ?? null;
     default: return null;
   }
 }
@@ -241,6 +245,8 @@ async function formatAnswerValue(state, ctx) {
     }
     case W.STATES.MULTI_DAY_PROMPT:
       return ctx.multiDay ? 'Yes' : 'No';
+    case W.STATES.SICK_DETAILS:
+      return ctx.sickDetails || '—';
     case W.STATES.SICK_NOTE_PROMPT:
       return ctx.drNotePromised ? 'Yes' : 'No';
     case W.STATES.FAMILY_PROOF_PROMPT:
@@ -250,6 +256,8 @@ async function formatAnswerValue(state, ctx) {
       return ctx.notes || '—';
     case W.STATES.LATE_ARRIVAL_TIME:
       return ctx.lateArrivalTime || '—';
+    case W.STATES.LATE_DETAILS:
+      return ctx.lateDetails || '—';
     default:
       return '—';
   }
@@ -263,10 +271,12 @@ const SUMMARY_ORDER = [
   W.STATES.SELECT_REASON,
   W.STATES.MULTI_DAY_PROMPT,
   W.STATES.RETURN_DATE_PROMPT,
+  W.STATES.SICK_DETAILS,
   W.STATES.SICK_NOTE_PROMPT,
   W.STATES.FAMILY_DETAILS,
   W.STATES.FAMILY_PROOF_PROMPT,
   W.STATES.LATE_ARRIVAL_TIME,
+  W.STATES.LATE_DETAILS,
   W.STATES.OTHER_DETAILS,
 ];
 
@@ -282,10 +292,12 @@ async function buildAnswerSummary(reportToken) {
     if (!copy) continue;
     if (state === W.STATES.MULTI_DAY_PROMPT && ctx.multiDay === undefined) continue;
     if (state === W.STATES.RETURN_DATE_PROMPT && !ctx.returnDate) continue;
+    if (state === W.STATES.SICK_DETAILS && ctx.reasonCode !== 'SICK') continue;
     if (state === W.STATES.SICK_NOTE_PROMPT && ctx.drNotePromised === undefined) continue;
     if (state === W.STATES.FAMILY_DETAILS && ctx.reasonCode !== 'EMERG') continue;
     if (state === W.STATES.FAMILY_PROOF_PROMPT && ctx.proofPromised === undefined) continue;
     if (state === W.STATES.LATE_ARRIVAL_TIME && !ctx.lateArrivalTime) continue;
+    if (state === W.STATES.LATE_DETAILS && ctx.reasonCode !== 'LATE') continue;
     if (state === W.STATES.OTHER_DETAILS && ctx.reasonCode !== 'OTHER') continue;
     if (state === W.STATES.CONFIRM_DATE && !ctx.shiftDate) continue;
     if (state === W.STATES.SELECT_REASON && !ctx.reasonCode) continue;

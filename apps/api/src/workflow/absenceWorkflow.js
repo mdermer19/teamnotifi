@@ -105,10 +105,12 @@ const STATES = {
   SELECT_REASON: 'SELECT_REASON',
   MULTI_DAY_PROMPT: 'MULTI_DAY_PROMPT',
   RETURN_DATE_PROMPT: 'RETURN_DATE_PROMPT',
+  SICK_DETAILS: 'SICK_DETAILS',
   SICK_NOTE_PROMPT: 'SICK_NOTE_PROMPT',
   FAMILY_DETAILS: 'FAMILY_DETAILS',
   FAMILY_PROOF_PROMPT: 'FAMILY_PROOF_PROMPT',
   LATE_ARRIVAL_TIME: 'LATE_ARRIVAL_TIME',
+  LATE_DETAILS: 'LATE_DETAILS',
   OTHER_DETAILS: 'OTHER_DETAILS',
   SUBMITTED: 'SUBMITTED',
 };
@@ -119,7 +121,7 @@ const flag = (key) => getWorkflowSetting(key) === 'true';
 function reasonEntryState(ctx) {
   switch (ctx.reasonCode) {
     case 'SICK':
-      return flag('dr_note_prompt_enabled') ? STATES.SICK_NOTE_PROMPT : STATES.SUBMITTED;
+      return STATES.SICK_DETAILS;
     case 'EMERG':
       if (ctx.notes) {
         return flag('proof_prompt_enabled') ? STATES.FAMILY_PROOF_PROMPT : STATES.SUBMITTED;
@@ -152,12 +154,18 @@ function nextState(current, ctx) {
     case STATES.RETURN_DATE_PROMPT:
       return reasonEntryState(ctx);
 
+    case STATES.SICK_DETAILS:
+      return flag('dr_note_prompt_enabled') ? STATES.SICK_NOTE_PROMPT : STATES.SUBMITTED;
+
     case STATES.FAMILY_DETAILS:
       return flag('proof_prompt_enabled') ? STATES.FAMILY_PROOF_PROMPT : STATES.SUBMITTED;
 
+    case STATES.LATE_ARRIVAL_TIME:
+      return STATES.LATE_DETAILS;
+
     case STATES.SICK_NOTE_PROMPT:
     case STATES.FAMILY_PROOF_PROMPT:
-    case STATES.LATE_ARRIVAL_TIME:
+    case STATES.LATE_DETAILS:
     case STATES.OTHER_DETAILS:
       return STATES.SUBMITTED;
 
@@ -249,6 +257,13 @@ async function applyAnswer(state, value, ctx) {
       return { patch: { proofPromised: b } };
     }
 
+    case STATES.SICK_DETAILS: {
+      const text = String(value ?? '').trim();
+      if (!text) return { error: 'Please add a short description.' };
+      if (text.length > MAX_NOTE_LEN) return { error: 'That is too long — please shorten it.' };
+      return { patch: { sickDetails: text } };
+    }
+
     case STATES.FAMILY_DETAILS:
     case STATES.OTHER_DETAILS: {
       const text = String(value ?? '').trim();
@@ -262,6 +277,13 @@ async function applyAnswer(state, value, ctx) {
       if (!text) return { error: 'Please enter about what time you expect to arrive.' };
       if (text.length > 100) return { error: 'That is too long — please shorten it.' };
       return { patch: { lateArrivalTime: text } };
+    }
+
+    case STATES.LATE_DETAILS: {
+      const text = String(value ?? '').trim();
+      if (!text) return { error: 'Please add a short description.' };
+      if (text.length > MAX_NOTE_LEN) return { error: 'That is too long — please shorten it.' };
+      return { patch: { lateDetails: text } };
     }
 
     default:
@@ -304,9 +326,12 @@ async function createAbsence(ctx, client = prisma) {
   if (ctx.drNotePromised !== undefined) data.drNotePromised = ctx.drNotePromised;
   if (ctx.proofPromised !== undefined) data.proofPromised = ctx.proofPromised;
   if (ctx.notes !== undefined) data.notes = ctx.notes;
+  if (ctx.sickDetails !== undefined) data.notes = ctx.sickDetails;
   // Late arrivals record the expected arrival time in notes, matching the
   // existing SMS behaviour and what notify.js reads back out.
-  if (ctx.lateArrivalTime !== undefined) data.notes = ctx.lateArrivalTime;
+  if (ctx.lateArrivalTime !== undefined) {
+    data.notes = ctx.lateArrivalTime + (ctx.lateDetails ? ' · ' + ctx.lateDetails : '');
+  }
 
   try {
     const absence = await client.absence.create({ data });
