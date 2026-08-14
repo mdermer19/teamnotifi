@@ -10,6 +10,14 @@ const REASON_COLORS = {
   OTHER: 'badge-slate',
 };
 
+// Numbers are stored E.164 (+17708422223). Render US numbers readably and
+// leave anything else exactly as stored rather than guessing at a format.
+function formatPhone(raw) {
+  if (!raw) return null;
+  const m = String(raw).match(/^\+1(\d{3})(\d{3})(\d{4})$/);
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : raw;
+}
+
 export default function EmployeeModal({ employee, onClose }) {
   const api = useApi();
   const [absences, setAbsences] = useState([]);
@@ -50,6 +58,16 @@ export default function EmployeeModal({ employee, onClose }) {
                 {employee.manager && (
                   <div>👤 Reports to {employee.manager.firstName} {employee.manager.lastName}</div>
                 )}
+                <div>
+                  📱{' '}
+                  {employee.phone ? (
+                    <a href={`tel:${employee.phone}`} className="hover:text-slate-700 hover:underline">
+                      {formatPhone(employee.phone)}
+                    </a>
+                  ) : (
+                    <span className="text-amber-600">No phone on file — cannot be texted</span>
+                  )}
+                </div>
                 {employee.employeeCode && <div className="text-xs text-slate-400">ID: {employee.employeeCode}</div>}
               </div>
             </div>
