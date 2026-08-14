@@ -5,7 +5,9 @@
  *
  * Sync rules:
  *  - paylocityPhone always reflects what Paylocity has on file
- *  - phone (used for SMS) is only updated from Paylocity if no personal number exists
+ *  - phone (used for SMS) always follows Paylocity when the export supplies a
+ *    number. A blank cell leaves the existing number alone rather than clearing
+ *    it, so a one-day gap in the export cannot strand someone on a dead number.
  *  - isManager is never demoted by sync — only promoted via supervisor relationships
  *  - Employees no longer in the active export are deactivated; open SMS sessions closed
  *  - Phone conflicts are logged as warnings and surfaced in the exception report
@@ -125,6 +127,7 @@ async function main() {
   // ── Step 2: Upsert employees (first pass — no managerId yet) ─────────────
   let updated = 0;
   let skipped = 0;
+  let phoneChanges = 0;
   const errors = [];
   const phoneConflicts = []; // tracked for exception report
 
@@ -169,14 +172,21 @@ async function main() {
       const existing = await p.employee.findUnique({ where: { employeeCode } });
 
       if (existing) {
-        // Determine the SMS phone to use:
-        // - If employee has a personal number (phone differs from their old paylocityPhone), keep it
-        // - Otherwise update phone to match the new Paylocity number
+        // Paylocity is authoritative for the SMS number: whenever the export
+        // supplies one, it wins. Nothing in the app can set `phone` by hand, so
+        // there is no such thing as a personal override to protect — the old
+        // "phone differs from paylocityPhone means a human set it" guard could
+        // only ever misfire, and did: a single blank cell in the export wiped
+        // paylocityPhone to null, which made the comparison permanently true
+        // and stranded the employee on a stale number forever.
+        //
+        // A blank cell now means "no update" for BOTH fields rather than a
+        // clear, so a gap in the export can't detach the two from each other.
         let smsPhone = existing.phone;
-        const hasPersonalNumber = existing.phone && existing.phone !== existing.paylocityPhone;
 
-        if (paylocityPhone && !hasPersonalNumber) {
-          // Check for conflict before updating
+        if (paylocityPhone) {
+          // Two employees must never share a number — inbound texts are matched
+          // by phone, so a duplicate makes the sender ambiguous.
           const conflict = await p.employee.findFirst({
             where: { phone: paylocityPhone, employeeCode: { not: employeeCode } },
           });
@@ -185,13 +195,22 @@ async function main() {
             phoneConflicts.push({ employeeCode, conflictWith: conflict.employeeCode, phone: paylocityPhone });
             // Keep existing smsPhone unchanged; still save paylocityPhone for reference
           } else {
+            if (existing.phone && existing.phone !== paylocityPhone) {
+              console.log(`  PHONE ${employeeCode} (${paylocityFields.firstName} ${paylocityFields.lastName}) — ${existing.phone} -> ${paylocityPhone}`);
+              phoneChanges++;
+            }
             smsPhone = paylocityPhone;
           }
         }
 
         await p.employee.update({
           where: { employeeCode },
-          data: { ...paylocityFields, phone: smsPhone },
+          data: {
+            ...paylocityFields,
+            // Never clear a known number just because the cell was blank today.
+            paylocityPhone: paylocityPhone ?? existing.paylocityPhone,
+            phone: smsPhone,
+          },
         });
       } else {
         // New employee — phone starts as paylocityPhone unless it conflicts
@@ -282,6 +301,7 @@ async function main() {
   console.log(`  Updated/created  : ${updated}`);
   console.log(`  Manager links    : ${managerLinked}`);
   console.log(`  Deactivated      : ${deactivated}`);
+  console.log(`  Phone changes    : ${phoneChanges}`);
   console.log(`  Phone conflicts  : ${phoneConflicts.length}`);
   console.log(`  Skipped/errors   : ${skipped}`);
   if (phoneConflicts.length) {
