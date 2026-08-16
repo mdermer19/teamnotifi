@@ -60,6 +60,7 @@ export default function Layout({ children }) {
   const { canManagePermissions, isSuperAdmin, isAdmin } = usePermissions() || {};
   const [mobileOpen, setMobileOpen] = useState(false);
   const [smsAlertCount, setSmsAlertCount] = useState(0);
+  const [exceptionCount, setExceptionCount] = useState(0);
   const api = useApi();
 
   // Poll for unresolved SMS delivery failures every 60 seconds (admins only)
@@ -77,12 +78,27 @@ export default function Layout({ children }) {
     return () => { cancelled = true; clearInterval(timer); };
   }, [isSuperAdmin, isAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Poll for roster exceptions every 60 seconds (super_admin only)
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let cancelled = false;
+    async function fetchCount() {
+      try {
+        const { count } = await api.getExceptionCount();
+        if (!cancelled) setExceptionCount(count);
+      } catch {}
+    }
+    fetchCount();
+    const timer = setInterval(fetchCount, 60_000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [isSuperAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const nav = [
     ...baseNav,
     ...(isSuperAdmin || isAdmin ? [{ to: '/coverage', label: 'Coverage', icon: 'arrows-right-left' }] : []),
     ...(canManagePermissions ? [{ to: '/permissions', label: 'Permissions', icon: 'lock-closed' }] : []),
     ...(isSuperAdmin ? [{ to: '/settings', label: 'Settings', icon: 'cog-6-tooth' }] : []),
-    ...(isSuperAdmin ? [{ to: '/exception-report', label: 'Exceptions', icon: 'exclamation-triangle' }] : []),
+    ...(isSuperAdmin ? [{ to: '/exception-report', label: 'Exceptions', icon: 'exclamation-triangle', badge: exceptionCount }] : []),
     ...(isSuperAdmin || isAdmin ? [{ to: '/sms-alerts', label: 'SMS Alerts', icon: 'bell-alert', badge: smsAlertCount }] : []),
   ];
 

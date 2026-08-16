@@ -52,4 +52,30 @@ router.get('/exceptions', requireRole('super_admin'), async (req, res) => {
   }
 });
 
+// GET /api/reports/exceptions/count — lightweight badge count
+router.get('/exceptions/count', requireRole('super_admin'), async (req, res) => {
+  try {
+    const employees = await prisma.employee.findMany({
+      where: { active: true },
+      select: { phone: true, managerId: true, locationId: true, firstName: true, manager: { select: { active: true } } },
+    });
+
+    const phoneCounts = {};
+    employees.forEach(e => {
+      if (e.phone) phoneCounts[e.phone] = (phoneCounts[e.phone] || 0) + 1;
+    });
+    const duplicatePhones = new Set(Object.keys(phoneCounts).filter(p => phoneCounts[p] > 1));
+
+    let count = 0;
+    for (const emp of employees) {
+      if (!emp.phone || duplicatePhones.has(emp.phone) || !emp.managerId || (emp.manager && !emp.manager.active) || !emp.locationId || !emp.firstName) {
+        count++;
+      }
+    }
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ count: 0 });
+  }
+});
+
 module.exports = router;

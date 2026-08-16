@@ -72,6 +72,7 @@ export function useApi() {
 
     // Reports
     getExceptionReport: () => request('/reports/exceptions'),
+    getExceptionCount:  () => request('/reports/exceptions/count'),
 
     // SMS delivery monitoring
     getSmsAlerts:      ()    => request('/sms-alerts'),
