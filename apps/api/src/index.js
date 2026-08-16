@@ -68,7 +68,7 @@ app.post('/webhook/sms', async (req, res) => {
   logTiming({ event: 'webhook_received', inboundSid, from, body, t0 });
 
   try {
-    const { reply, absenceId } = await handleInbound(from, body);
+    const { reply, absenceId, employeeId } = await handleInbound(from, body);
     const t1 = Date.now();
     logTiming({ event: 'app_finished', inboundSid, from, t0, t1, appMs: t1 - t0, hasReply: !!reply });
 
@@ -80,7 +80,7 @@ app.post('/webhook/sms', async (req, res) => {
     res.send(response.toString());
 
     if (reply) {
-      sendSms(from, reply, { absenceId }).catch(err =>
+      sendSms(from, reply, { absenceId, employeeId }).catch(err =>
         console.error(`[webhook/sms] sendSms failed for ${from}:`, err.message)
       );
     }

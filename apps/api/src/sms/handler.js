@@ -192,7 +192,7 @@ async function handleInboundViaLink(phone, input) {
   // person, so stay silent rather than send a second, conflicting one.
   if (result.raced || result.duplicateInbound) return { reply: null };
 
-  if (result.rateLimited) return { reply: M.LINK_RATE_LIMITED() };
+  if (result.rateLimited) return { reply: M.LINK_RATE_LIMITED(), employeeId: employee.id };
 
   return {
     reply: M.LINK_SENT({
@@ -200,6 +200,7 @@ async function handleInboundViaLink(phone, input) {
       reportUrl: R.buildReportUrl(result.raw),
       expiresInMinutes: String(R.ttlMinutes()),
     }),
+    employeeId: employee.id,
   };
 }
 
@@ -225,7 +226,7 @@ async function handleInbound(rawPhone, body) {
   const ctx = session.context || {};
 
   function out(reply, absenceId = null) {
-    return { reply, absenceId };
+    return { reply, absenceId, employeeId: ctx.employeeId || null };
   }
 
   async function yesNo(extraIntents = []) {
