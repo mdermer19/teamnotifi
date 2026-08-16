@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useApi } from '../lib/api';
 import { usePermissions } from '../hooks/usePermissions';
 
@@ -50,6 +50,75 @@ const STATUS_STYLES = {
 function coverageStatus(c) {
   if (!c.active) return { label: 'Inactive', cls: 'badge-slate' };
   return STATUS_STYLES[c.statusNow] || { label: 'Unknown', cls: 'badge-slate' };
+}
+
+// ── Multi-Select Dropdown ───────────────────────────────────────────────
+function MultiSelectDropdown({ options, selected, onChange, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function toggle(id) {
+    onChange(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
+  }
+
+  const selectedNames = selected
+    .map(id => options.find(o => o.id === id))
+    .filter(Boolean);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="input w-full text-left flex items-center justify-between gap-2 min-h-[2.5rem]"
+      >
+        {selectedNames.length === 0 ? (
+          <span className="text-slate-400">{placeholder}</span>
+        ) : (
+          <span className="flex flex-wrap gap-1 flex-1">
+            {selectedNames.map(m => (
+              <span key={m.id} className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                {m.firstName} {m.lastName}
+                <span
+                  role="button"
+                  onClick={e => { e.stopPropagation(); toggle(m.id); }}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                >&times;</span>
+              </span>
+            ))}
+          </span>
+        )}
+        <svg className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {open && (
+        <div className="absolute z-10 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+          {options.length === 0 ? (
+            <p className="text-sm text-slate-400 px-3 py-2.5">No options available</p>
+          ) : (
+            options.map(m => (
+              <label key={m.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(m.id)}
+                  onChange={() => toggle(m.id)}
+                  className="rounded"
+                />
+                <span className="text-sm text-slate-800">{m.firstName} {m.lastName}
+                  {m.role && <span className="text-slate-400 ml-1 capitalize">· {m.role.replace('_', ' ')}</span>}
+                </span>
+              </label>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Coverage Modal ──────────────────────────────────────────────────────
@@ -126,7 +195,9 @@ function CoverageModal({ managers, existing, onClose, onSave }) {
     }
   }
 
-  const availableCoverers = managers.filter(m => !form.absentManagerIds.includes(m.id));
+  const byFirstName = (a, b) => (a.firstName || '').localeCompare(b.firstName || '');
+  const sortedManagers = [...managers].sort(byFirstName);
+  const sortedCoverers = managers.filter(m => !form.absentManagerIds.includes(m.id)).sort(byFirstName);
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
@@ -139,59 +210,31 @@ function CoverageModal({ managers, existing, onClose, onSave }) {
           {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{error}</div>}
 
           <div>
-            <label className="label">{isEdit ? 'Manager who is out *' : 'Who is out? (select all that apply) *'}</label>
+            <label className="label">{isEdit ? 'Manager who is out *' : 'Who is out? *'}</label>
             {isEdit ? (
               <select className="input" required value={form.absentManagerIds[0] || ''}
                 onChange={e => setForm(f => ({ ...f, absentManagerIds: [parseInt(e.target.value)], covererIds: f.covererIds.filter(c => c !== parseInt(e.target.value)) }))}>
                 <option value="">Select manager…</option>
-                {managers.map(m => <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>)}
+                {sortedManagers.map(m => <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>)}
               </select>
             ) : (
-              <div className="border border-slate-200 rounded-lg divide-y max-h-48 overflow-y-auto">
-                {managers.map(m => (
-                  <label key={m.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.absentManagerIds.includes(m.id)}
-                      onChange={() => toggleAbsent(m.id)}
-                      className="rounded"
-                    />
-                    <span className="text-sm text-slate-800">{m.firstName} {m.lastName}
-                      {m.role && <span className="text-slate-400 ml-1 capitalize">· {m.role.replace('_', ' ')}</span>}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-            {!isEdit && form.absentManagerIds.length > 0 && (
-              <p className="text-xs text-slate-500 mt-1">{form.absentManagerIds.length} selected</p>
+              <MultiSelectDropdown
+                options={sortedManagers}
+                selected={form.absentManagerIds}
+                onChange={ids => setForm(f => ({ ...f, absentManagerIds: ids, covererIds: f.covererIds.filter(c => !ids.includes(c)) }))}
+                placeholder="Select managers…"
+              />
             )}
           </div>
 
           <div>
-            <label className="label">Who is covering? (select all that apply) *</label>
-            {availableCoverers.length === 0 ? (
-              <p className="text-sm text-slate-400">{form.absentManagerIds.length === 0 ? 'Select who is out first.' : 'No available coverers.'}</p>
-            ) : (
-              <div className="border border-slate-200 rounded-lg divide-y max-h-48 overflow-y-auto">
-                {availableCoverers.map(m => (
-                  <label key={m.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={form.covererIds.includes(m.id)}
-                      onChange={() => toggleCoverer(m.id)}
-                      className="rounded"
-                    />
-                    <span className="text-sm text-slate-800">{m.firstName} {m.lastName}
-                      {m.role && <span className="text-slate-400 ml-1 capitalize">· {m.role.replace('_', ' ')}</span>}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-            {form.covererIds.length > 0 && (
-              <p className="text-xs text-slate-500 mt-1">{form.covererIds.length} selected — all will receive notifications</p>
-            )}
+            <label className="label">Who is covering? *</label>
+            <MultiSelectDropdown
+              options={sortedCoverers}
+              selected={form.covererIds}
+              onChange={ids => setForm(f => ({ ...f, covererIds: ids }))}
+              placeholder="Select coverers…"
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
