@@ -13,9 +13,18 @@ const MESSAGE_TYPE_LABELS = {
   manager_notification: 'Manager notification',
 };
 
-function formatAlert(alert) {
+function formatEmployee(emp) {
+  if (!emp) return null;
+  return {
+    id: emp.id,
+    name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+    location: emp.location ? emp.location.name : null,
+  };
+}
+
+function formatAlert(alert, phoneLookup) {
   const msg = alert.smsMessage;
-  const emp = msg.employee;
+  const emp = msg.employee || (msg.phone ? phoneLookup.get(msg.phone) : null);
   return {
     id: alert.id,
     createdAt: alert.createdAt,
@@ -29,11 +38,7 @@ function formatAlert(alert) {
       errorCode: msg.errorCode,
       sentAt: msg.createdAt,
       statusUpdatedAt: msg.statusUpdatedAt,
-      employee: emp ? {
-        id: emp.id,
-        name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
-        location: emp.location ? emp.location.name : null,
-      } : null,
+      employee: formatEmployee(emp),
       absenceId: msg.absenceId,
     },
   };
@@ -60,7 +65,27 @@ router.get('/', adminOnly, async (req, res) => {
         },
       },
     });
-    res.json(alerts.map(formatAlert));
+
+    // For messages missing employeeId, fall back to matching by phone number
+    const orphanPhones = [
+      ...new Set(
+        alerts
+          .filter(a => !a.smsMessage.employee && a.smsMessage.phone)
+          .map(a => a.smsMessage.phone)
+      ),
+    ];
+    const phoneLookup = new Map();
+    if (orphanPhones.length > 0) {
+      const matches = await prisma.employee.findMany({
+        where: { phone: { in: orphanPhones } },
+        select: { id: true, firstName: true, lastName: true, phone: true, location: { select: { name: true } } },
+      });
+      for (const emp of matches) {
+        if (emp.phone) phoneLookup.set(emp.phone, emp);
+      }
+    }
+
+    res.json(alerts.map(a => formatAlert(a, phoneLookup)));
   } catch (err) {
     console.error('[sms-alerts] GET error:', err);
     res.status(500).json({ error: 'Failed to fetch alerts' });
