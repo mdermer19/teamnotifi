@@ -13,18 +13,9 @@ const MESSAGE_TYPE_LABELS = {
   manager_notification: 'Manager notification',
 };
 
-function formatEmployee(emp) {
-  if (!emp) return null;
-  return {
-    id: emp.id,
-    name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
-    location: emp.location ? emp.location.name : null,
-  };
-}
-
 function formatAlert(alert, phoneLookup) {
   const msg = alert.smsMessage;
-  const emp = msg.employee || (msg.phone ? phoneLookup.get(msg.phone) : null);
+  const emp = msg.phone ? phoneLookup.get(msg.phone) : null;
   return {
     id: alert.id,
     createdAt: alert.createdAt,
@@ -38,7 +29,11 @@ function formatAlert(alert, phoneLookup) {
       errorCode: msg.errorCode,
       sentAt: msg.createdAt,
       statusUpdatedAt: msg.statusUpdatedAt,
-      employee: formatEmployee(emp),
+      employee: emp ? {
+        id: emp.id,
+        name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
+        location: emp.location ? emp.location.name : null,
+      } : null,
       absenceId: msg.absenceId,
     },
   };
@@ -50,37 +45,17 @@ router.get('/', adminOnly, async (req, res) => {
     const alerts = await prisma.smsAlert.findMany({
       where: { acknowledgedAt: null },
       orderBy: { createdAt: 'desc' },
-      include: {
-        smsMessage: {
-          include: {
-            employee: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                location: { select: { name: true } },
-              },
-            },
-          },
-        },
-      },
+      include: { smsMessage: true },
     });
 
-    // For messages missing employeeId, fall back to matching by phone number
-    const orphanPhones = [
-      ...new Set(
-        alerts
-          .filter(a => !a.smsMessage.employee && a.smsMessage.phone)
-          .map(a => a.smsMessage.phone)
-      ),
-    ];
+    const phones = [...new Set(alerts.map(a => a.smsMessage.phone).filter(Boolean))];
     const phoneLookup = new Map();
-    if (orphanPhones.length > 0) {
-      const matches = await prisma.employee.findMany({
-        where: { phone: { in: orphanPhones } },
+    if (phones.length > 0) {
+      const employees = await prisma.employee.findMany({
+        where: { phone: { in: phones } },
         select: { id: true, firstName: true, lastName: true, phone: true, location: { select: { name: true } } },
       });
-      for (const emp of matches) {
+      for (const emp of employees) {
         if (emp.phone) phoneLookup.set(emp.phone, emp);
       }
     }
