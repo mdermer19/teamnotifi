@@ -55,8 +55,9 @@ function coverageStatus(c) {
 // ── Coverage Modal ──────────────────────────────────────────────────────
 function CoverageModal({ managers, existing, onClose, onSave }) {
   const api = useApi();
+  const isEdit = !!existing;
   const [form, setForm] = useState({
-    absentManagerId: existing?.absentManager?.id || '',
+    absentManagerIds: existing ? [existing.absentManager.id] : [],
     covererIds: existing?.coverers?.map(c => c.manager.id) || [],
     startDate: existing?.startDate ? existing.startDate.slice(0, 10) : '',
     startTime: existing?.startTime || '00:00',
@@ -66,6 +67,16 @@ function CoverageModal({ managers, existing, onClose, onSave }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  function toggleAbsent(id) {
+    setForm(f => ({
+      ...f,
+      absentManagerIds: f.absentManagerIds.includes(id)
+        ? f.absentManagerIds.filter(x => x !== id)
+        : [...f.absentManagerIds, id],
+      covererIds: f.covererIds.filter(c => c !== id),
+    }));
+  }
 
   function toggleCoverer(id) {
     setForm(f => ({
@@ -78,13 +89,34 @@ function CoverageModal({ managers, existing, onClose, onSave }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (!form.absentManagerIds.length) { setError('Select at least one manager who is out.'); return; }
     if (!form.covererIds.length) { setError('Select at least one covering manager.'); return; }
     setSaving(true); setError(null);
     try {
-      if (existing) {
-        await api.updateCoverage(existing.id, form);
+      if (isEdit) {
+        await api.updateCoverage(existing.id, {
+          absentManagerId: form.absentManagerIds[0],
+          covererIds: form.covererIds,
+          startDate: form.startDate,
+          startTime: form.startTime,
+          endDate: form.endDate,
+          endTime: form.endTime,
+          reason: form.reason,
+        });
       } else {
-        await api.createCoverage(form);
+        const shared = {
+          covererIds: form.covererIds,
+          startDate: form.startDate,
+          startTime: form.startTime,
+          endDate: form.endDate,
+          endTime: form.endTime,
+          reason: form.reason,
+        };
+        await Promise.all(
+          form.absentManagerIds.map(id =>
+            api.createCoverage({ ...shared, absentManagerId: id })
+          )
+        );
       }
       onSave(); onClose();
     } catch (err) {
@@ -94,31 +126,52 @@ function CoverageModal({ managers, existing, onClose, onSave }) {
     }
   }
 
-  const availableCoverers = managers.filter(m => m.id !== parseInt(form.absentManagerId));
+  const availableCoverers = managers.filter(m => !form.absentManagerIds.includes(m.id));
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
       <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b">
-          <h2 className="font-semibold text-slate-900">{existing ? 'Edit Coverage' : 'Set Up Coverage'}</h2>
+          <h2 className="font-semibold text-slate-900">{isEdit ? 'Edit Coverage' : 'Set Up Coverage'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{error}</div>}
 
           <div>
-            <label className="label">Manager who is out *</label>
-            <select className="input" required value={form.absentManagerId}
-              onChange={e => setForm(f => ({ ...f, absentManagerId: e.target.value, covererIds: [] }))}>
-              <option value="">Select manager…</option>
-              {managers.map(m => <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>)}
-            </select>
+            <label className="label">{isEdit ? 'Manager who is out *' : 'Who is out? (select all that apply) *'}</label>
+            {isEdit ? (
+              <select className="input" required value={form.absentManagerIds[0] || ''}
+                onChange={e => setForm(f => ({ ...f, absentManagerIds: [parseInt(e.target.value)], covererIds: f.covererIds.filter(c => c !== parseInt(e.target.value)) }))}>
+                <option value="">Select manager…</option>
+                {managers.map(m => <option key={m.id} value={m.id}>{m.firstName} {m.lastName}</option>)}
+              </select>
+            ) : (
+              <div className="border border-slate-200 rounded-lg divide-y max-h-48 overflow-y-auto">
+                {managers.map(m => (
+                  <label key={m.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.absentManagerIds.includes(m.id)}
+                      onChange={() => toggleAbsent(m.id)}
+                      className="rounded"
+                    />
+                    <span className="text-sm text-slate-800">{m.firstName} {m.lastName}
+                      {m.role && <span className="text-slate-400 ml-1 capitalize">· {m.role.replace('_', ' ')}</span>}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            {!isEdit && form.absentManagerIds.length > 0 && (
+              <p className="text-xs text-slate-500 mt-1">{form.absentManagerIds.length} selected</p>
+            )}
           </div>
 
           <div>
             <label className="label">Who is covering? (select all that apply) *</label>
             {availableCoverers.length === 0 ? (
-              <p className="text-sm text-slate-400">Select a manager above first.</p>
+              <p className="text-sm text-slate-400">{form.absentManagerIds.length === 0 ? 'Select who is out first.' : 'No available coverers.'}</p>
             ) : (
               <div className="border border-slate-200 rounded-lg divide-y max-h-48 overflow-y-auto">
                 {availableCoverers.map(m => (
@@ -178,10 +231,16 @@ function CoverageModal({ managers, existing, onClose, onSave }) {
               onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} />
           </div>
 
+          {!isEdit && form.absentManagerIds.length > 1 && (
+            <p className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded px-2 py-1.5">
+              This will create {form.absentManagerIds.length} coverage records — one for each manager who is out, all with the same coverer(s) and dates.
+            </p>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1">
-              {saving ? 'Saving…' : existing ? 'Save Changes' : 'Create Coverage'}
+              {saving ? 'Saving…' : isEdit ? 'Save Changes' : form.absentManagerIds.length > 1 ? `Create ${form.absentManagerIds.length} Coverage Records` : 'Create Coverage'}
             </button>
           </div>
         </form>
