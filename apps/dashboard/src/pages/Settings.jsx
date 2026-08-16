@@ -36,12 +36,12 @@ const TEMPLATE_WARNINGS = {
 const TEMPLATE_GROUPS = [
   { label: 'Getting Started', keys: ['UNKNOWN_PHONE', 'CONFIRM_START'] },
   { label: 'Date & Reason', keys: ['CONFIRM_DATE', 'INVALID_DATE', 'SELECT_REASON', 'INVALID_REASON'] },
-  { label: 'Sick Leave', keys: ['SICK_NOTE_PROMPT', 'SICK_YES_NOTE', 'SICK_NO_NOTE', 'SICK_REPROMPT'] },
+  { label: 'Sick Leave', keys: ['SICK_DETAILS_PROMPT', 'SICK_NOTE_PROMPT', 'SICK_YES_NOTE', 'SICK_NO_NOTE', 'SICK_REPROMPT'] },
   { label: 'Family / Emergency', keys: ['FAMILY_DETAILS_PROMPT', 'FAMILY_DETAILS_ACK', 'FAMILY_PROOF_PROMPT', 'FAMILY_YES_PROOF', 'FAMILY_NO_PROOF', 'FAMILY_REPROMPT'] },
   // LATE_ARRIVAL_TIME_PROMPT and LATE_DONE were missing here, which is why
   // they were the only two templates never customized — they were not
   // reachable from this page at all.
-  { label: 'Late Arrival', keys: ['LATE_ARRIVAL_TIME_PROMPT', 'LATE_DONE', 'LATE_MESSAGE'] },
+  { label: 'Late Arrival', keys: ['LATE_ARRIVAL_TIME_PROMPT', 'LATE_DETAILS_PROMPT', 'LATE_DONE', 'LATE_MESSAGE'] },
   { label: 'Other Reason', keys: ['OTHER_DETAILS_PROMPT', 'OTHER_DONE'] },
   { label: 'Multi-Day Absence', keys: ['MULTI_DAY_PROMPT', 'RETURN_DATE_PROMPT', 'INVALID_RETURN_DATE'] },
   { label: 'General', keys: ['CANCEL', 'REPROMPT', 'DUPLICATE_ABSENCE', 'ABSENCE_CONFIRMED'] },

@@ -130,7 +130,10 @@ async function logAbsence(ctx, extras = {}) {
   if (ctx.drNotePromised !== undefined) data.drNotePromised = ctx.drNotePromised;
   if (ctx.proofPromised !== undefined) data.proofPromised = ctx.proofPromised;
   if (ctx.notes !== undefined) data.notes = ctx.notes;
-  if (ctx.lateArrivalTime !== undefined) data.notes = ctx.lateArrivalTime;
+  if (ctx.sickDetails !== undefined) data.notes = ctx.sickDetails;
+  if (ctx.lateArrivalTime !== undefined) {
+    data.notes = ctx.lateArrivalTime + (ctx.lateDetails ? ' · ' + ctx.lateDetails : '');
+  }
   Object.assign(data, extras);
 
   const absence = await prisma.absence.create({ data });
@@ -407,6 +410,19 @@ async function handleInbound(rawPhone, body) {
     return advanceToReasonState(phone, newCtx, out);
   }
 
+  // SICK_DETAILS
+  if (state === 'SICK_DETAILS') {
+    const updatedCtx = Object.assign({}, ctx, { sickDetails: input });
+    const vars = await buildVars(updatedCtx);
+    if (getWorkflowSetting('dr_note_prompt_enabled') !== 'true') {
+      const result = await logAbsence(updatedCtx);
+      await closeSession(phone);
+      return out(M.ABSENCE_CONFIRMED(vars), result.absence ? result.absence.id : null);
+    }
+    await updateSession(phone, 'SICK_NOTE_PROMPT', updatedCtx);
+    return out(M.SICK_NOTE_PROMPT(vars));
+  }
+
   // SICK_NOTE_PROMPT
   if (state === 'SICK_NOTE_PROMPT') {
     const intent = await yesNo();
@@ -459,6 +475,13 @@ async function handleInbound(rawPhone, body) {
   // LATE_ARRIVAL_TIME
   if (state === 'LATE_ARRIVAL_TIME') {
     const updatedCtx = Object.assign({}, ctx, { lateArrivalTime: input });
+    await updateSession(phone, 'LATE_DETAILS', updatedCtx);
+    return out(M.LATE_DETAILS_PROMPT(await buildVars(updatedCtx)));
+  }
+
+  // LATE_DETAILS
+  if (state === 'LATE_DETAILS') {
+    const updatedCtx = Object.assign({}, ctx, { lateDetails: input });
     const result = await logAbsence(updatedCtx);
     await closeSession(phone);
     return out(M.LATE_DONE(await buildVars(updatedCtx)), result.absence ? result.absence.id : null);
@@ -478,7 +501,7 @@ async function handleInbound(rawPhone, body) {
 }
 
 function nextReasonState(reasonCode) {
-  if (reasonCode === 'SICK') return 'SICK_NOTE_PROMPT';
+  if (reasonCode === 'SICK') return 'SICK_DETAILS';
   if (reasonCode === 'EMERG') return 'FAMILY_DETAILS';
   if (reasonCode === 'OTHER') return 'OTHER_DETAILS';
   return 'DONE';
@@ -488,13 +511,8 @@ async function advanceToReasonState(phone, ctx, out) {
   const vars = await buildVars(ctx);
   const reasonCode = ctx.reasonCode;
   if (reasonCode === 'SICK') {
-    if (getWorkflowSetting('dr_note_prompt_enabled') !== 'true') {
-      const result = await logAbsence(ctx);
-      await closeSession(phone);
-      return out(M.ABSENCE_CONFIRMED(vars), result.absence ? result.absence.id : null);
-    }
-    await updateSession(phone, 'SICK_NOTE_PROMPT', ctx);
-    return out(M.SICK_NOTE_PROMPT(vars));
+    await updateSession(phone, 'SICK_DETAILS', ctx);
+    return out(M.SICK_DETAILS_PROMPT(vars));
   }
   if (reasonCode === 'EMERG') {
     // If employee already described the situation (initial message or free-text reason), skip asking again
