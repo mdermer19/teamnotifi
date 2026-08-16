@@ -7,7 +7,8 @@ const twilio = require('twilio');
 const { twiml: { MessagingResponse } } = require('twilio');
 const { PrismaClient } = require('@prisma/client');
 const { clerkMiddleware, requireAuth } = require('@clerk/express');
-const { handleInbound, logMessage, normalizeInbound } = require('./sms/handler');
+const { handleInbound, normalizeInbound } = require('./sms/handler');
+const { sendSms } = require('./services/smsSender');
 const { withAppUser } = require('./middleware/appUser');
 
 const prisma = new PrismaClient();
@@ -71,22 +72,26 @@ app.post('/webhook/sms', async (req, res) => {
     const t1 = Date.now();
     logTiming({ event: 'app_finished', inboundSid, from, t0, t1, appMs: t1 - t0, hasReply: !!reply });
 
-    if (reply) await logMessage(from, 'outbound', reply, absenceId);
+    // Return empty TwiML immediately, then send the reply through the
+    // Messaging Service so it's covered by the A2P campaign. TwiML replies
+    // bypass the Messaging Service and get blocked by carriers (error 30007).
     const response = new MessagingResponse();
-    if (reply) {
-      const base = process.env.API_BASE_URL || '';
-      const cbUrl = `${base}/webhook/sms-status?in=${encodeURIComponent(inboundSid)}&t0=${t0}&t1=${t1}`;
-      response.message({ statusCallback: cbUrl }, reply);
-    }
     res.type('text/xml');
     res.send(response.toString());
+
+    if (reply) {
+      sendSms(from, reply, { absenceId }).catch(err =>
+        console.error(`[webhook/sms] sendSms failed for ${from}:`, err.message)
+      );
+    }
   } catch (err) {
     console.error('Webhook error:', err);
     logTiming({ event: 'webhook_error', inboundSid, from, t0, error: err.message });
     const response = new MessagingResponse();
-    response.message('Sorry, something went wrong. Please try again.');
     res.type('text/xml');
     res.send(response.toString());
+
+    sendSms(from, 'Sorry, something went wrong. Please try again.').catch(() => {});
   }
 });
 
