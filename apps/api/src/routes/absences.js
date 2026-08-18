@@ -140,10 +140,10 @@ router.get('/:id/messages', async (req, res) => {
     const windowStart = new Date(anchor.getTime() - 2 * 60 * 60 * 1000);
     const windowEnd   = new Date(anchor.getTime() + 1 * 60 * 60 * 1000);
 
-    const messages = await prisma.smsMessage.findMany({
+    const allMessages = await prisma.smsMessage.findMany({
       where: {
         OR: [
-          { absenceId: id, NOT: { messageType: 'manager_notification' } },
+          { absenceId: id },
           {
             phone: employee.phone,
             createdAt: { gte: windowStart, lte: windowEnd },
@@ -153,6 +153,7 @@ router.get('/:id/messages', async (req, res) => {
       },
       orderBy: { createdAt: 'asc' },
     });
+    const messages = allMessages.filter(m => m.messageType !== 'manager_notification');
 
     // Absences submitted through the web form have no back-and-forth SMS
     // conversation to show — just a link text and a confirmation text. The
