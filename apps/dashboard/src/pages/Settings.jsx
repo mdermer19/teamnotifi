@@ -19,8 +19,8 @@ const ALL_VARS = [
 // 🟡 warn = should keep certain keywords or instructions
 const TEMPLATE_WARNINGS = {
   SELECT_REASON:       { level: 'critical', text: 'Numbers 1–4 are hardcoded in the system — 1=Sick, 2=Emergency, 3=Late, 4=Other. Only edit the label text next to each number. Never reorder them.' },
-  DUPLICATE_ABSENCE:   { level: 'critical', text: 'The words UPDATE and CANCEL must remain in this message. The system recognizes them as commands.' },
-  CONFIRM_START:       { level: 'critical', text: 'Must instruct the employee to reply YES or CANCEL. Those are the only replies the system acts on here.' },
+  DUPLICATE_ABSENCE:   { level: 'critical', text: 'The words UPDATE and NEVERMIND must remain in this message. The system recognizes them as commands. Never use STOP, STOPALL, UNSUBSCRIBE, CANCEL, END, or QUIT — Twilio treats those as opt-out keywords and silently blocks all future texts to that number.' },
+  CONFIRM_START:       { level: 'critical', text: 'Must instruct the employee to reply YES or NEVERMIND. Those are the only replies the system acts on here. Never use STOP, STOPALL, UNSUBSCRIBE, CANCEL, END, or QUIT — Twilio treats those as opt-out keywords and silently blocks all future texts to that number.' },
   SICK_NOTE_PROMPT:    { level: 'warn',     text: 'Must instruct the employee to reply YES or NO.' },
   SICK_REPROMPT:       { level: 'warn',     text: 'Must instruct the employee to reply YES or NO.' },
   FAMILY_PROOF_PROMPT: { level: 'warn',     text: 'Must instruct the employee to reply YES or NO.' },

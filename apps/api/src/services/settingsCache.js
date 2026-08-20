@@ -8,7 +8,7 @@ const CACHE_TTL = 15 * 1000;
 
 const DEFAULT_TEMPLATES = {
   UNKNOWN_PHONE: "We don't recognize this number. Reply with your Employee ID to get set up.",
-  CONFIRM_START: 'Hi {{firstName}}! If you are reporting an absence or late arrival, reply YES to continue or CANCEL to stop.',
+  CONFIRM_START: 'Hi {{firstName}}! If you are reporting an absence or late arrival, reply YES to continue or NEVERMIND to stop.',
   CONFIRM_DATE: 'What date are you reporting for? Reply TODAY, TOMORROW, or a date (e.g. 06/20).',
   INVALID_DATE: "Didn't catch that. Reply TODAY, TOMORROW, or a date like 06/20.",
   SELECT_REASON: "Please select a reason:\n1 - I'm Sick\n2 - Family/Personal Emergency\n3 - Late Arrival\n4 - Other",
@@ -35,7 +35,7 @@ const DEFAULT_TEMPLATES = {
   INVALID_RETURN_DATE: "Didn't catch that. Please reply with a return date like 06/22.",
   CANCEL: 'No problem. Text us anytime.',
   REPROMPT: "Didn't catch that. {{original}}",
-  DUPLICATE_ABSENCE: 'You already reported out for {{date}}. Reply UPDATE to change it or CANCEL to keep the existing report.',
+  DUPLICATE_ABSENCE: 'You already reported out for {{date}}. Reply UPDATE to change it or NEVERMIND to keep the existing report.',
   ABSENCE_CONFIRMED: 'Your absence has been recorded for {{dateRange}}. Your manager has been notified.',
 
   // --- Web report flow: the single SMS that starts it -----------------------

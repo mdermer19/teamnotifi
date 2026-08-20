@@ -9,9 +9,9 @@ function getClient() {
 // State definitions: what the system asked and what valid intents are
 const STATE_CONFIGS = {
   CONFIRM_START: {
-    prompt: 'Are you reporting an absence or late arrival today? Reply YES to continue or CANCEL to stop.',
+    prompt: 'Are you reporting an absence or late arrival today? Reply YES to continue or NEVERMIND to stop.',
     intents: ['YES', 'CANCEL'],
-    description: 'YES means they want to report an absence. CANCEL means they want to stop or are not reporting.',
+    description: 'YES means they want to report an absence. CANCEL means they want to stop or are not reporting (they may say NEVERMIND, "no", "not reporting", etc).',
   },
   CONFIRM_DATE: {
     prompt: 'What date are you reporting for? Reply TODAY, TOMORROW, or a date (e.g. 06/20).',

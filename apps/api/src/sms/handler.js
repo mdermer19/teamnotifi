@@ -214,7 +214,15 @@ async function handleInbound(rawPhone, body) {
 
   await logMessage(phone, 'inbound', input);
 
-  if (upper === 'STOP' || upper === 'QUIT' || upper === 'UNSUBSCRIBE') {
+  // Twilio's default Advanced Opt-Out keyword list (STOP, STOPALL,
+  // UNSUBSCRIBE, CANCEL, END, QUIT) auto-registers the number as opted-out
+  // the instant one of these arrives — Twilio blocks our reply and every
+  // message after it with error 21610 until the employee texts START.
+  // Any reply we send here would fail anyway, so don't try (that only
+  // produces confusing "Didn't catch that" loops); just clear the session
+  // so their next real message starts fresh once they re-subscribe.
+  if (upper === 'STOP' || upper === 'STOPALL' || upper === 'UNSUBSCRIBE' || upper === 'CANCEL' || upper === 'END' || upper === 'QUIT') {
+    await closeSession(phone);
     return { reply: null };
   }
 
@@ -333,7 +341,7 @@ async function handleInbound(rawPhone, body) {
 
   // SELECT_REASON
   if (state === 'SELECT_REASON') {
-    if (upper === 'CANCEL') {
+    if (upper === 'CANCEL' || upper === 'NEVERMIND') {
       const vars = await buildVars(ctx);
       await closeSession(phone);
       return out(M.CANCEL(vars));
