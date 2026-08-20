@@ -32,14 +32,19 @@ router.get('/me/notification-preferences', async (req, res) => {
 });
 
 // PUT /api/users/me/notification-preferences
+// Only notifyTeamSubs is user-editable. Direct-report and coverage
+// notifications are mandatory and locked on — requested by the business
+// owner so managers can't silently miss call-outs for their own team or a
+// team they're actively covering.
 router.put('/me/notification-preferences', async (req, res) => {
   if (!req.appUser) return res.status(401).json({ error: 'Not authenticated' });
   if (!req.appUser.employeeId) return res.status(400).json({ error: 'No employee record linked to your account' });
   const { notifyDirectReports, notifyTeamSubs, notifyCoverage } = req.body;
+  if (typeof notifyDirectReports === 'boolean' || typeof notifyCoverage === 'boolean') {
+    return res.status(403).json({ error: 'You do not have permission to turn this off.' });
+  }
   const data = {};
-  if (typeof notifyDirectReports === 'boolean') data.notifyDirectReports = notifyDirectReports;
   if (typeof notifyTeamSubs === 'boolean') data.notifyTeamSubs = notifyTeamSubs;
-  if (typeof notifyCoverage === 'boolean') data.notifyCoverage = notifyCoverage;
   try {
     const emp = await prisma.employee.update({
       where: { id: req.appUser.employeeId },

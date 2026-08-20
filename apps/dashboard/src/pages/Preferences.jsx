@@ -7,6 +7,7 @@ const TOGGLES = [
     key: 'notifyDirectReports',
     label: 'Direct reports',
     description: 'Text me when someone who reports to me calls out.',
+    locked: true,
   },
   {
     key: 'notifyTeamSubs',
@@ -17,19 +18,22 @@ const TOGGLES = [
     key: 'notifyCoverage',
     label: 'Active coverage periods',
     description: "Text me about call-outs on a team I'm covering for right now.",
+    locked: true,
   },
 ];
 
-function Toggle({ checked, onChange, disabled }) {
+function Toggle({ checked, onChange, disabled, locked }) {
   return (
     <button
       onClick={onChange}
       disabled={disabled}
       role="switch"
       aria-checked={checked}
+      aria-disabled={locked}
+      title={locked ? 'You do not have permission to turn this off.' : undefined}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none flex-shrink-0 ${
         checked ? 'bg-forest' : 'bg-slate-200'
-      } ${disabled ? 'opacity-50 cursor-default' : ''}`}
+      } ${disabled ? 'opacity-50 cursor-default' : ''} ${locked ? 'opacity-60 cursor-not-allowed' : ''}`}
     >
       <span
         className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
@@ -59,7 +63,11 @@ export default function Preferences() {
       .finally(() => setLoading(false));
   }, [permLoading, me?.employeeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function toggle(key) {
+  async function toggle(key, locked) {
+    if (locked) {
+      alert('You do not have permission to turn this off.');
+      return;
+    }
     const next = !prefs[key];
     setPrefs(prev => ({ ...prev, [key]: next }));
     setSaving(prev => ({ ...prev, [key]: true }));
@@ -118,11 +126,13 @@ export default function Preferences() {
                   <div className="text-sm text-slate-500 mt-1 leading-relaxed">{t.description}</div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
-                  {saved[t.key] && <span className="text-xs text-green-600">Saved ✓</span>}
+                  {t.locked && <span className="text-xs text-slate-400">Always on</span>}
+                  {!t.locked && saved[t.key] && <span className="text-xs text-green-600">Saved ✓</span>}
                   <Toggle
-                    checked={!!prefs[t.key]}
+                    checked={t.locked ? true : !!prefs[t.key]}
                     disabled={saving[t.key]}
-                    onChange={() => toggle(t.key)}
+                    locked={t.locked}
+                    onChange={() => toggle(t.key, t.locked)}
                   />
                 </div>
               </div>
