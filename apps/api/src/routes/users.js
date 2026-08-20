@@ -15,6 +15,43 @@ router.get('/me', async (req, res) => {
   res.json(req.appUser);
 });
 
+// GET /api/users/me/notification-preferences
+router.get('/me/notification-preferences', async (req, res) => {
+  if (!req.appUser) return res.status(401).json({ error: 'Not authenticated' });
+  if (!req.appUser.employeeId) return res.status(400).json({ error: 'No employee record linked to your account' });
+  try {
+    const emp = await prisma.employee.findUnique({
+      where: { id: req.appUser.employeeId },
+      select: { notifyDirectReports: true, notifyTeamSubs: true, notifyCoverage: true },
+    });
+    if (!emp) return res.status(404).json({ error: 'Employee record not found' });
+    res.json(emp);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// PUT /api/users/me/notification-preferences
+router.put('/me/notification-preferences', async (req, res) => {
+  if (!req.appUser) return res.status(401).json({ error: 'Not authenticated' });
+  if (!req.appUser.employeeId) return res.status(400).json({ error: 'No employee record linked to your account' });
+  const { notifyDirectReports, notifyTeamSubs, notifyCoverage } = req.body;
+  const data = {};
+  if (typeof notifyDirectReports === 'boolean') data.notifyDirectReports = notifyDirectReports;
+  if (typeof notifyTeamSubs === 'boolean') data.notifyTeamSubs = notifyTeamSubs;
+  if (typeof notifyCoverage === 'boolean') data.notifyCoverage = notifyCoverage;
+  try {
+    const emp = await prisma.employee.update({
+      where: { id: req.appUser.employeeId },
+      data,
+      select: { notifyDirectReports: true, notifyTeamSubs: true, notifyCoverage: true },
+    });
+    res.json(emp);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/users — all app users (super_admin only)
 router.get('/', requireRole('super_admin'), async (req, res) => {
   try {

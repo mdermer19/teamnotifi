@@ -9,6 +9,7 @@ import Employees from './pages/Employees';
 import Coverage from './pages/Coverage';
 import Permissions from './pages/Permissions';
 import Settings from './pages/Settings';
+import Preferences from './pages/Preferences';
 import ExceptionReport from './pages/ExceptionReport';
 import ReportFlow from './pages/report/ReportFlow';
 import Privacy from './pages/Privacy';
@@ -57,6 +58,7 @@ function AuthedApp() {
               <Route path="/coverage" element={<Coverage />} />
               <Route path="/permissions" element={<Permissions />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/preferences" element={<Preferences />} />
               <Route path="/exception-report" element={<ExceptionReport />} />
               <Route path="/sms-alerts" element={<SmsAlerts />} />
               <Route path="*" element={<Navigate to="/" replace />} />

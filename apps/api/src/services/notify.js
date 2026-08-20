@@ -32,7 +32,8 @@ async function resolveRecipients(managerId) {
       if (!(await isOut(c.managerId))) recipientIds.add(c.managerId);
     }
   } else {
-    recipientIds.add(managerId);
+    const me = await prisma.employee.findUnique({ where: { id: managerId }, select: { notifyDirectReports: true } });
+    if (me?.notifyDirectReports !== false) recipientIds.add(managerId);
   }
 
   // Permanent team subscribers (unless out)
@@ -41,7 +42,30 @@ async function resolveRecipients(managerId) {
     if (!(await isOut(s.subscriberId))) recipientIds.add(s.subscriberId);
   }
 
-  return prisma.employee.findMany({ where: { id: { in: [...recipientIds] }, active: true } });
+  if (!recipientIds.size) return [];
+
+  const employees = await prisma.employee.findMany({ where: { id: { in: [...recipientIds] }, active: true } });
+  const empById = new Map(employees.map(e => [e.id, e]));
+
+  // Each recipient is filtered by the preference that matches how they were
+  // selected: coverers need notifyCoverage, everyone else here needs
+  // notifyTeamSubs (subscriber path) — the direct-report path already
+  // checked notifyDirectReports before being added to the set.
+  const result = [];
+  const covererIds = new Set(primaryCoverage ? primaryCoverage.coverers.map(c => c.managerId) : []);
+  const subscriberIds = new Set(subscribers.map(s => s.subscriberId));
+  for (const id of recipientIds) {
+    const emp = empById.get(id);
+    if (!emp) continue;
+    if (covererIds.has(id)) {
+      if (emp.notifyCoverage !== false) result.push(emp);
+    } else if (subscriberIds.has(id)) {
+      if (emp.notifyTeamSubs !== false) result.push(emp);
+    } else {
+      result.push(emp);
+    }
+  }
+  return result;
 }
 
 function buildMessage(absence) {

@@ -42,6 +42,9 @@ model Employee {
   languagePref  String    @default("en") @map("language_pref")
   workEmail     String?   @map("work_email")
   sheetSyncedAt DateTime? @map("sheet_synced_at")
+  notifyDirectReports    Boolean @default(true) @map("notify_direct_reports")
+  notifyTeamSubs         Boolean @default(true) @map("notify_team_subs")
+  notifyCoverage         Boolean @default(true) @map("notify_coverage")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
